@@ -30,13 +30,18 @@ class Bush:
         self.branches = []
         self.origin = origin 
         
+        self.demand = dict()
+        
+        for s in origin.destSet:
+            self.demand[s] = 0
+        
         #print(origin)
         self.relevantPAS = PASList.PASList()
         
         #for l in self.network.links:
         #    self.flow[l] = 0
             
-        self.loadDemand()
+        self.equilibrateDemand()
         
         
     def contains(self, l):
@@ -1029,5 +1034,76 @@ class Bush:
         self.network.allPAS.add(pas)
         self.relevantPAS.add(pas)
         
+    def equilibrateDemand(self):
+    
+        gap = 1e10
+        
+        print("equilibrate "+str(self.origin.id))
+        while gap > self.network.params.demand_gap:
+        
+            
+                
+
+
+            for dest in self.origin.getDests():
+            
+                if self.demand[dest] > self.network.params.flow_epsilon:
+                    self.minUsedTree()
+                else:
+                    self.minTree()
+
+                dem = self.demand[dest]
+                path = self.tracePath(self.origin, dest)
+                
+    
+                
+                tt = self.calcPathTT(path, 0)
+                pathflow = self.calcPathFlow(path)
+                
+                bot = -min(pathflow, dem)
+                top = self.origin.demandFunc(dest, tt)
+                
+                print(top, bot)
+                
+                while top > bot:
+                    mid = (bot+top)/2
+                    
+                    tt_path = self.calcPathTT(path, mid)
+                    tt_dem = self.origin.demandFuncInv(dest, dem + mid)
+                    
+                    print("\t", dest, tt_path-tt_dem, bot, top)
+                
+                    # if path TT > dem TT, we should reduce dem to equilibrate
+                    # if path TT < dem TT, we could support more flow
+                    if tt_path - tt_dem < -self.network.params.line_search_gap:
+                        bot = mid
+                    elif tt_path - tt_dem > self.network.params.line_search_gap:
+                        top = mid
+                    else:
+                        bot = mid
+                        break
+                        
+                # shift bot
+                self.demand[dest] += bot
+                for ij in path:
+                    self.addFlow(ij, bot)
+                
+        
+    def calcPathFlow(self, path):
+        output = 1e10
+        
+        for ij in path:
+            output = min(output, self.getFlow(ij))
+        
+        return output
+        
+    def calcPathTT(self, path, shift):
+        output = 0
+        
+        for ij in path:
+            output += ij.getTravelTime(ij.x + shift, self.network.type)
+        
+        return output
+            
     def __str__(self):
         return "bush "+str(self.origin.id)

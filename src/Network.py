@@ -35,6 +35,8 @@ class Network:
         self.readNetwork("data/"+name+"/"+ins+".txt",scal_time,scal_flow)
         self.readTrips("data/"+name+"/trips.txt",scal_time,scal_flow,inflate_trips)
         
+        for r in self.origins:
+            r.setDests()
         
         self.links1 = []
         
@@ -410,22 +412,9 @@ class Network:
         
     def setY(self, y):
     
-        newlinks = []
-        removedlinks = []
-        
-        for ij in self.links2:
-            if y[ij] != ij.y:
-                if y[ij] == 0:
-                    removedlinks.append(ij)
-                else:
-                    newlinks.append(ij)
-            ij.y = y[ij]
-            
-        # delete PAS using removedlinks        
         for r in self.origins:
-            if r.bush != None:
-                r.bush.addLinks(newlinks)
-                r.bush.removeLinks(removedlinks)
+            r.setY(y[r])
+                
                 
 
 
@@ -463,6 +452,8 @@ class Network:
     def resetTapas(self):
         for r in self.origins:
             r.bush = None
+            for s in r.getDests():
+                r.addDemand(s, -r.getDemand(s))
             
         for a in self.links:
             a.x = 0
@@ -517,6 +508,11 @@ class Network:
                     
                 r.bush.removeCycles()
                 # find tree of least cost routes
+                
+                if self.params.PRINT_TAPAS_INFO:
+                    print("equilibrating elastic demand", r)
+                                
+                r.bush.equilibrateDemand()
                             
                 if self.params.PRINT_TAPAS_INFO:
                     print("checking for PAS", r)
@@ -706,3 +702,14 @@ class Network:
         
         for p in removed:
             self.removeAPAS(p)
+            
+    def calcY(self):
+
+        y = dict()
+        for r in self.origins:
+            self.dijkstras(r, 'UE')
+            y[r] = dict()
+            for s in r.destSet:
+                y[r][s] = r.demandFuncY(s, r.getDemand(s), s.cost*1.5)
+                
+        return y

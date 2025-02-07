@@ -12,6 +12,8 @@ class Params:
         # if this is too small, we waste time shifting in PAS that is useless
         self.pas_cost_epsilon = 0.01
         self.line_search_gap = 1E-8
+        self.demand_gap = 1e-3
+        
         
         
     def __init__(self):
@@ -34,6 +36,7 @@ class Params:
         self.pas_cost_epsilon = 1e-2
         self.pas_flow_mu = 1e-2       
         self.line_search_gap = 1E-8
+        self.demand_gap = 1e-3
         
         self.resetPAS()
         
@@ -69,7 +72,7 @@ class Params:
 
         self.PRINT_PAS_INFO = False
         self.PRINT_BRANCH_INFO = False
-        self.PRINT_TAPAS_INFO = False
+        self.PRINT_TAPAS_INFO = True
         
         self.PRINT_TAP_ITER = True
 

@@ -37,11 +37,18 @@ scale_dem = 1
 print(scale_dem * inflate_trips[net], inflate_cost, scal_flow[net])
 
 network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
+y = network.calcY()
+
+print("starting tapas")
+
+network.tapas('UE', y)
+
+
 print("TD", network.TD)
 
-test = OA_CNDP_CG.OA_CNDP_CG(network, inflate_cost, useLinkVF=True)
+#test = OA_CNDP_CG.OA_CNDP_CG(network, inflate_cost, useLinkVF=True)
 #test = HY_CNDP.HY_CNDP(network)
 #test = CNDP_MILP.CNDP_MILP(network, 5, 5, 20, inflate_cost)
 
 #obj, tot_time, tap_time, iter, = test.solve()
-test.solve()
+#test.solve()
