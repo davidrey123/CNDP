@@ -340,6 +340,7 @@ class Network:
                 output += r.bush.demand[s] * s.cost
                 
                 tmf += abs(r.bush.demand[s] - max(0, r.demandFunc(s, s.cost)))
+                #print(r.bush.demand[s], r.demandFunc(s, s.cost), s.cost, r.calTT[s])
                 totaldemand += r.bush.demand[s]
 
         return output, tmf, totaldemand
@@ -566,7 +567,7 @@ class Network:
                             
             tstt = self.getTSTT(type)
             sptt, tmf, totaldemand = self.getSPTT(type) 
-            
+            #print(tmf, totaldemand)
             
             gap = (tstt - sptt)/tstt
             aec = (tstt - sptt)/self.TD
@@ -576,7 +577,7 @@ class Network:
             #print(iter, sptt)
                             
             if self.params.PRINT_TAP_ITER:
-                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec)+"\t"+str(dem_gap))
+                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec)+"\t"+str(dem_gap)+"\t"+str(totaldemand))
                 
                 #printLinkFlows();
 
@@ -721,6 +722,6 @@ class Network:
             self.dijkstras(r, 'UE')
             y[r] = dict()
             for s in r.destSet:
-                y[r][s] = r.demandFuncY(s, r.getDemand(s), s.cost)
+                y[r][s] = r.demandFuncY(s, r.getDemand(s), s.cost*1.5)
                 
         return y

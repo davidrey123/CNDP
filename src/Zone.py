@@ -14,7 +14,7 @@ class Zone(Node.Node):
         
         self.y = dict()
         self.a = dict()
-    
+        self.calTT = dict()
     
     
     def setY(self, ynew):
@@ -35,6 +35,7 @@ class Zone(Node.Node):
     def demandFuncY(self, dest, dem, tt):
         self.a[dest] = tt
         y = math.exp(tt/self.a[dest]) * dem
+        self.calTT[dest] = tt
         
         #print("check calc ",  y * math.exp(-tt/self.a[dest]), dem, tt )
         #print("\t", y * math.exp(-tt*1.5/self.a[dest]), dem, tt*1.5)
