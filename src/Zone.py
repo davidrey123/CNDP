@@ -13,7 +13,7 @@ class Zone(Node.Node):
         self.destSet = set()
         
         self.y = dict()
-        self.a = 1
+        self.a = dict()
     
     
     
@@ -22,14 +22,23 @@ class Zone(Node.Node):
             self.y[s] = ynew[s]
         
     def demandFunc(self, dest, tt):
-        return self.y[dest] * math.exp(-tt/self.a) # placeholder
+        #print(self.y[dest], tt, self.a[dest], math.exp(-tt/self.a[dest]), self.getDemand(dest))
+        
+        output = self.y[dest] * math.exp(-tt/self.a[dest]) 
+        #check = self.a[dest] * math.log(self.y[dest]/self.getDemand(dest)) 
+        #print("check calc 2 ", output, check, tt, self.getDemand(dest))
+        return output
         
     def demandFuncInv(self, dest, dem):
-        return self.a * math.log(self.y[dest]/dem) # placeholder
+        return self.a[dest] * math.log(self.y[dest]/dem) 
     
-    def demandFuncY(self, dest, tt, dem):
-
-        return tt / math.exp(-self.a/dem)
+    def demandFuncY(self, dest, dem, tt):
+        self.a[dest] = tt
+        y = math.exp(tt/self.a[dest]) * dem
+        
+        #print("check calc ",  y * math.exp(-tt/self.a[dest]), dem, tt )
+        #print("\t", y * math.exp(-tt*1.5/self.a[dest]), dem, tt*1.5)
+        return y
     
         
     def getDests(self):

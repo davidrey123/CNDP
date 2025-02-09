@@ -6,6 +6,7 @@ from src import Bush
 from src import Params
 from src import PASList
 from src import Heap
+import math
 
 class Network:
 
@@ -328,15 +329,20 @@ class Network:
     # returns the total system travel time if all demand is on the shortest path
     def getSPTT(self, type):
         output = 0.0
+        
+        tmf = 0.0
+        totaldemand = 0.0
 
         for r in self.origins:
             self.dijkstras(r, type)
 
-            for s in self.zones:
-                if r.getDemand(s) > 0:
-                    output += r.getDemand(s) * s.cost
+            for s in r.destSet:
+                output += r.bush.demand[s] * s.cost
+                
+                tmf += abs(r.bush.demand[s] - max(0, r.demandFunc(s, s.cost)))
+                totaldemand += r.bush.demand[s]
 
-        return output
+        return output, tmf, totaldemand
 
     # returns the total number of trips in the network
     def getTotalTrips(self):
@@ -452,8 +458,8 @@ class Network:
     def resetTapas(self):
         for r in self.origins:
             r.bush = None
-            for s in r.getDests():
-                r.addDemand(s, -r.getDemand(s))
+            #for s in r.getDests():
+                #r.addDemand(s, -r.getDemand(s))
             
         for a in self.links:
             a.x = 0
@@ -473,7 +479,7 @@ class Network:
         iter = 1
         max_iter = self.params.tapas_max_iter
         
-        if type == 'UE' or type == 'SO':
+        if type == 'UE' or type == 'SO' or type == 'FF':
             min_gap = self.params.min_gap
         elif type == 'SO_OA_cuts':
             min_gap = self.params.min_gap_SO_OA_cuts
@@ -511,9 +517,10 @@ class Network:
                 
                 if self.params.PRINT_TAPAS_INFO:
                     print("equilibrating elastic demand", r)
-                                
-                r.bush.equilibrateDemand()
                             
+                r.bush.equilibrateDemand()
+                
+              
                 if self.params.PRINT_TAPAS_INFO:
                     print("checking for PAS", r)
                                 
@@ -558,18 +565,22 @@ class Network:
                     break
                             
             tstt = self.getTSTT(type)
-            sptt = self.getSPTT(type)
+            sptt, tmf, totaldemand = self.getSPTT(type) 
+            
+            
             gap = (tstt - sptt)/tstt
             aec = (tstt - sptt)/self.TD
+            
+            dem_gap = tmf / totaldemand
 
             #print(iter, sptt)
                             
             if self.params.PRINT_TAP_ITER:
-                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec))
+                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec)+"\t"+str(dem_gap))
                 
                 #printLinkFlows();
 
-            if gap < min_gap:
+            if gap < min_gap and dem_gap < min_gap:
                 break
                 
             # there's an issue where PAS are labeled as not cost effective because the difference in cost is small, less than 5% of the reduced cost
@@ -710,6 +721,6 @@ class Network:
             self.dijkstras(r, 'UE')
             y[r] = dict()
             for s in r.destSet:
-                y[r][s] = r.demandFuncY(s, r.getDemand(s), s.cost*1.5)
+                y[r][s] = r.demandFuncY(s, r.getDemand(s), s.cost)
                 
         return y

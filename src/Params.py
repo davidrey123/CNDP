@@ -72,7 +72,7 @@ class Params:
 
         self.PRINT_PAS_INFO = False
         self.PRINT_BRANCH_INFO = False
-        self.PRINT_TAPAS_INFO = True
+        self.PRINT_TAPAS_INFO = False
         
         self.PRINT_TAP_ITER = True
 
@@ -81,7 +81,7 @@ class Params:
         self.PRINT_PARAM_ADJ = True
         self.PRINT_PAS_DEBUG = False
         
-        self.PRINT_BB_INFO = True #---prints detailed BB info
+        self.PRINT_BB_INFO = False #---prints detailed BB info
         self.PRINT_BB_BASIC = False #---prints only basic BB info        
         
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now

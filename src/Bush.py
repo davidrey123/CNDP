@@ -41,8 +41,8 @@ class Bush:
         #for l in self.network.links:
         #    self.flow[l] = 0
             
-        self.equilibrateDemand()
-        
+        #self.equilibrateDemand()
+        self.loadDemand()
         
     def contains(self, l):
         return l in self.flow and self.flow[l] > self.network.params.flow_epsilon
@@ -62,7 +62,7 @@ class Bush:
 
         #return False
      
-    def loadDemand(self):
+    def loadDemandOld(self):
         #with open('result130.txt', 'w') as file, contextlib.redirect_stdout(file):
             self.network.dijkstras(self.origin, self.network.type)
             #with open('result37.txt', 'w') as file, contextlib.redirect_stdout(file):
@@ -82,9 +82,13 @@ class Bush:
                         #print(f"curr is {curr}")
                         #print(curr)
 
-        
+                self.demand[s] = d
             self.topologicalSort()
         #print(self.topologicalSort)
+        
+        
+    
+
 
     def topologicalSort(self):
         
@@ -190,7 +194,7 @@ class Bush:
         gap = (tstt-sptt)/tstt
         
         if gap > 1e-4:     
-            print(self.origin, sptt, tstt, gap, demand - totflow, self.validateFlowConservation())
+            print("check equilibrium ", self.origin, sptt, tstt, gap, demand - totflow, self.validateFlowConservation())
             return False
         return True
         
@@ -1038,41 +1042,81 @@ class Bush:
     
         gap = 1e10
         
-        print("equilibrate "+str(self.origin.id))
-        while gap > self.network.params.demand_gap:
+        self.network.dijkstras(self.origin, self.network.type)
         
+        #print("equilibrate "+str(self.origin.id))
+
+        for dest in self.origin.getDests():
+
             
-                
+
+            dem = self.demand[dest]
+            path = self.tracePath(self.origin, dest)
 
 
-            for dest in self.origin.getDests():
-            
-                if self.demand[dest] > self.network.params.flow_epsilon:
-                    self.minUsedTree()
+
+            tt = self.calcPathTT(path, 0)
+            pathflow = self.calcPathFlow(path)
+
+            bot = -min(pathflow, dem)
+            top = self.origin.demandFunc(dest, tt)
+            #print("starting with ", top, tt)
+
+           
+
+            while top -bot > self.network.params.line_search_gap:
+                mid = (bot+top)/2
+
+                tt_path = self.calcPathTT(path, mid)
+                tt_dem = self.origin.demandFuncInv(dest, dem + mid)
+
+                #print("\t", dest, tt_path-tt_dem, bot, top)
+
+                # if path TT > dem TT, we should reduce dem to equilibrate
+                # if path TT < dem TT, we could support more flow
+                if tt_path - tt_dem < -self.network.params.line_search_gap:
+                    bot = mid
+                elif tt_path - tt_dem > self.network.params.line_search_gap:
+                    top = mid
                 else:
-                    self.minTree()
+                    bot = mid
+                    break
 
-                dem = self.demand[dest]
-                path = self.tracePath(self.origin, dest)
-                
+            # shift bot
+            bot = self.origin.getDemand(dest)
+            
+            self.demand[dest] += bot
+            for ij in path:
+                self.addFlow(ij, bot)
+            
+            #print("\tcheck", self.demand[dest], self.origin.demandFunc(dest, tt_path), self.origin.getDemand(dest))        
     
+    def loadDemand(self):
+        #with open('result130.txt', 'w') as file, contextlib.redirect_stdout(file):
+            self.network.dijkstras(self.origin, self.network.type)
+            #with open('result37.txt', 'w') as file, contextlib.redirect_stdout(file):
+            for s in self.origin.destSet:
+            
+                path = self.tracePath(self.origin, s)
+                dem = self.demand[s]
                 
                 tt = self.calcPathTT(path, 0)
                 pathflow = self.calcPathFlow(path)
-                
+
                 bot = -min(pathflow, dem)
-                top = self.origin.demandFunc(dest, tt)
-                
-                print(top, bot)
-                
-                while top > bot:
+                top = self.origin.demandFunc(s, tt)
+                #print("starting with ", top, tt)
+
+
+
+                while top -bot > self.network.params.line_search_gap:
                     mid = (bot+top)/2
-                    
+
                     tt_path = self.calcPathTT(path, mid)
-                    tt_dem = self.origin.demandFuncInv(dest, dem + mid)
-                    
-                    print("\t", dest, tt_path-tt_dem, bot, top)
-                
+                    tt_dem = self.origin.demandFuncInv(s, dem + mid)
+
+                    #print("\t", dest, tt_path-tt_dem, bot, top)
+
                     # if path TT > dem TT, we should reduce dem to equilibrate
                     # if path TT < dem TT, we could support more flow
                     if tt_path - tt_dem < -self.network.params.line_search_gap:
@@ -1082,11 +1126,18 @@ class Bush:
                     else:
                         bot = mid
                         break
-                        
-                # shift bot
-                self.demand[dest] += bot
+
+
+                
+                #d = self.origin.getDemand(s)
+                d = bot   
+                    
                 for ij in path:
-                    self.addFlow(ij, bot)
+                    self.addFlow(ij, d)
+                    
+                self.demand[s] = d
+            self.topologicalSort()
+        #print(self.topologicalSort)        
                 
         
     def calcPathFlow(self, path):

@@ -60,6 +60,9 @@ class Link:
         elif type == 'RC' or type == 'RC2':
             output = self.dual
             
+        elif type == 'FF':
+            output = self.t_ff
+            
         else:
             raise Exception("wrong type "+str(type))
 
