@@ -76,7 +76,7 @@ class Params:
         self.PRINT_BRANCH_INFO = False
         self.PRINT_TAPAS_INFO = False
         
-        self.PRINT_TAP_ITER = True
+        self.PRINT_TAP_ITER = False
 
         self.printBushEquilibrate = False
         self.printReducedCosts = False        

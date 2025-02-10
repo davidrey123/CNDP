@@ -100,11 +100,14 @@ class OA_CNDP_elastic:
                 
                 
             delta_y = 0
+            total_y = 0
             for r in self.network.origins:
                 for s in r.getDests():
-                    delta_y += (y_l[(r,s)] - last_y_l[(r,s)]) **2
+                    delta_y += abs(y_l[(r,s)] - last_y_l[(r,s)])
+                    total_y += y_l[(r,s)]
             
-            print("\tdelta_y", delta_y)   
+            delta_y_pct = delta_y / total_y
+            print("\tdelta_y", delta_y_pct)   
             last_x_l = x_l
             last_y_l = y_l
             last_x_l = x_l
@@ -282,7 +285,7 @@ class OA_CNDP_elastic:
         self.rmp.q = {(r,s): self.rmp.continuous_var(lb=0, ub=10*r.getDemand(s)) for r in self.network.origins for s in r.getDests()}
         
         
-        self.rmp.y = {(r,s): self.rmp.continuous_var(lb=0, ub=self.rmp.y_ub[(r,s)]) for r in self.network.origins for s in r.getDests()}
+        self.rmp.y = {(r,s): self.rmp.continuous_var(lb=self.rmp.y_lb[(r,s)], ub=self.rmp.y_ub[(r,s)]) for r in self.network.origins for s in r.getDests()}
         self.rmp.beta = {a:self.rmp.continuous_var(lb=0) for a in self.network.links}
         self.rmp.rho = {(r,s):self.rmp.continuous_var(lb=-1e10) for r in self.network.origins for s in r.getDests()}
         self.rmp.theta = {(r,s):self.rmp.continuous_var(lb=0,ub=1) for r in self.network.origins for s in r.getDests()}
