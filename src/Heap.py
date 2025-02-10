@@ -14,7 +14,7 @@ class Heap:
         self.maxSize = 0
         
     def compare(self, i, j):
-        if abs(i.cost - j.cost) > Params.Params().SP_tol:
+        if abs(i.cost - j.cost) > Params.Params(False).SP_tol:
             return i.cost - j.cost
         else:
             return i.id - j.id

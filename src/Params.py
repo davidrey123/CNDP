@@ -16,7 +16,7 @@ class Params:
         
         
         
-    def __init__(self):
+    def __init__(self, equilibrate_demand):
         
         #---Numerical rounding precision (in decimals)
         self.rd = 6
@@ -27,10 +27,10 @@ class Params:
         #---TAP params
         self.msa_max_iter = 500        
         self.tapas_max_iter = 100 
-        self.min_gap = 1E-4
+        self.min_gap = 1E-2
         self.warmstart = False     
         
-        self.equilibrate_demand = False   
+        self.equilibrate_demand = equilibrate_demand   
         
         #---TAPAS params
         self.bush_gap = 1e-2
@@ -80,7 +80,7 @@ class Params:
 
         self.printBushEquilibrate = False
         self.printReducedCosts = False        
-        self.PRINT_PARAM_ADJ = True
+        self.PRINT_PARAM_ADJ = False
         self.PRINT_PAS_DEBUG = False
         
         self.PRINT_BB_INFO = False #---prints detailed BB info

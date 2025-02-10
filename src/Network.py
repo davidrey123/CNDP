@@ -21,7 +21,7 @@ class Network:
         self.type = 'UE'
         self.TD = 0
         self.TC = 0 # total cost
-        self.params = Params.Params()
+        self.params = Params.Params(False)
         
         self.ins = ins    
         
@@ -482,12 +482,13 @@ class Network:
         for a in self.links:
             a.x = 0
                 
-        self.params = Params.Params()
+        self.params = Params.Params(self.params.equilibrate_demand)
         
         self.allPAS = PASList.PASList()
     
     def tapas(self, type, y):
         
+        #print("elastic demand? ", self.params.equilibrate_demand)
         if not self.params.warmstart:
             self.resetTapas()
         
@@ -511,7 +512,7 @@ class Network:
         last_iter_gap = 1
         
         for r in self.origins:
-            if r.bush == None:
+            if r.bush == None or self.params.equilibrate_demand:
                 r.bush = Bush.Bush(self, r)
         
         while iter <= max_iter:

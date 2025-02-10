@@ -41,6 +41,7 @@ class Bush:
         #for l in self.network.links:
         #    self.flow[l] = 0
             
+
         if self.network.params.equilibrate_demand:
             self.equilibrateDemand()
         else:
