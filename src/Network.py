@@ -23,7 +23,9 @@ class Network:
         self.TC = 0 # total cost
         self.params = Params.Params()
         
-        self.ins = ins        
+        self.ins = ins    
+        
+        self.name = name    
         
         self.allPAS = PASList.PASList()        
         
@@ -212,9 +214,24 @@ class Network:
         return self.nodes[id - 1]
 
     # find the link with the given start and end nodes
-    def findLink(self, i, j):
+    def findLink(self, i_in, j_in):
+        
+        i = None
+        j = None
+        
+        if isinstance(i_in, Node.Node):
+            i = i_in
+        elif isinstance(i_in, int):
+            i = self.findNode(i_in)
+            
+        if isinstance(j_in, Node.Node):
+            j = j_in
+        elif isinstance(j_in, int):
+            j = self.findNode(j_in)   
+        
         if i is None or j is None:
             return None
+            
 
         for link in i.outgoing:
             if link.end == j:
@@ -516,10 +533,11 @@ class Network:
                 r.bush.removeCycles()
                 # find tree of least cost routes
                 
-                if self.params.PRINT_TAPAS_INFO:
-                    print("equilibrating elastic demand", r)
-                            
-                r.bush.equilibrateDemand()
+                if self.params.equilibrate_demand:
+                    if self.params.PRINT_TAPAS_INFO:
+                        print("equilibrating elastic demand", r)
+
+                    r.bush.equilibrateDemand()
                 
               
                 if self.params.PRINT_TAPAS_INFO:
@@ -572,18 +590,25 @@ class Network:
             gap = (tstt - sptt)/tstt
             aec = (tstt - sptt)/self.TD
             
-            dem_gap = tmf / totaldemand
+            
 
             #print(iter, sptt)
                             
-            if self.params.PRINT_TAP_ITER:
-                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec)+"\t"+str(dem_gap)+"\t"+str(totaldemand))
+            
                 
                 #printLinkFlows();
 
-            if gap < min_gap and dem_gap < min_gap:
+            dem_gap = tmf / totaldemand
+            
+            if self.params.PRINT_TAP_ITER:
+                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec)+"\t"+str(dem_gap)+"\t"+str(totaldemand))
+
+            
+            
+            if gap < min_gap and (not self.params.equilibrate_demand or dem_gap < min_gap):
                 break
-                
+                    
+      
             # there's an issue where PAS are labeled as not cost effective because the difference in cost is small, less than 5% of the reduced cost
             # for low network gaps, this is causing PAS to not flow shift
             # when the gap is low, increase the flow shift sensitivity
@@ -725,3 +750,15 @@ class Network:
                 y[r][s] = r.demandFuncY(s, r.getDemand(s), s.cost*1.5)
                 
         return y
+
+    def printLinkFlows(self):
+        with open("data/"+self.name+"/linkflows_1.txt", "w") as f:
+            for a in self.links:
+                f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(a.x)+"\n")
+                
+    def printODDemand(self):
+        with open("data/"+self.name+"/demand_1.txt", "w") as f:
+            for r in self.origins:
+                for s in r.getDests():
+                    f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(r.bush.demand[s])+"\n")
+        

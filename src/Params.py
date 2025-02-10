@@ -28,7 +28,9 @@ class Params:
         self.msa_max_iter = 500        
         self.tapas_max_iter = 100 
         self.min_gap = 1E-4
-        self.warmstart = False        
+        self.warmstart = False     
+        
+        self.equilibrate_demand = False   
         
         #---TAPAS params
         self.bush_gap = 1e-2

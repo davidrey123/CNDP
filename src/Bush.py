@@ -41,8 +41,10 @@ class Bush:
         #for l in self.network.links:
         #    self.flow[l] = 0
             
-        self.equilibrateDemand()
-        #self.loadDemand()
+        if self.network.params.equilibrate_demand:
+            self.equilibrateDemand()
+        else:
+            self.loadDemand()
         
     def contains(self, l):
         return l in self.flow and self.flow[l] > self.network.params.flow_epsilon

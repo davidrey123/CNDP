@@ -1,11 +1,6 @@
 #---modules
 from src import Network
-from src import OA_CNDP
-from src import OA_CNDP_CG
-from src import OA_CNDP_CS
-#from src import HY_CNDP
-#from src import DuGP_CNDP
-#from src import CNDP_MILP
+from src import OA_CNDP_elastic
 from decimal import Decimal
 #import polytope as pc
 
@@ -39,13 +34,15 @@ print(scale_dem * inflate_trips[net], inflate_cost, scal_flow[net])
 network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 y = network.calcY()
 
-print("starting tapas")
+#print("starting tapas")
 
-network.tapas('UE', y)
+#network.tapas('UE', y)
+#network.printLinkFlows()
+#network.printODDemand()
 
+#print("TD", network.TD)
 
-print("TD", network.TD)
-
+test = OA_CNDP_elastic.OA_CNDP_elastic(network)
 #test = OA_CNDP_CG.OA_CNDP_CG(network, inflate_cost, useLinkVF=True)
 #test = HY_CNDP.HY_CNDP(network)
 #test = CNDP_MILP.CNDP_MILP(network, 5, 5, 20, inflate_cost)
