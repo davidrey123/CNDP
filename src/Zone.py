@@ -31,6 +31,17 @@ class Zone(Node.Node):
         
     def demandFuncInv(self, dest, dem):
         return self.a[dest] * math.log(self.y[dest]/dem) 
+        
+    def DInv(self, dest, q, y):
+        return self.a[dest] * math.log(y / q)
+        
+    def intDinv(self, dest, q, y):
+        if q == 0 or y == 0:
+            print(self.id, dest.id, self.getDemand(dest), q, y)
+        return self.a[dest] * (q * math.log(y/q) + q)
+        
+    def intDerivDinv(self, dest, q, y):
+        return self.a[dest] * q / y
     
     def demandFuncY(self, dest, dem, tt):
         self.a[dest] = tt

@@ -34,6 +34,11 @@ class OA_CNDP_elastic:
  
         
         self.network.params.equilibrate_demand = True
+        
+        
+
+        self.vfcut_x = list()
+        self.vfcut_q = list()
     
     def solve(self):
        
@@ -55,9 +60,9 @@ class OA_CNDP_elastic:
             iteration += 1
             
             # solve RMP -> y, LB
-            x_l, y_l, q_l, obj_l = self.solveRMP()
+            x_l, q_l, y_l, obj_l = self.solveRMP()
             lb = obj_l
-            ll_l = self.calcBeckmann(x_l, y_l)
+            ll_l = self.calcLLobj(x_l, q_l, y_l)
             
             # solve TAP -> x, UB
             x_f, ll_f = self.TAP(y_l)
@@ -89,78 +94,125 @@ class OA_CNDP_elastic:
             last_x_l = x_l
     
     def calcOFV(self):
-        output = self.network.getTSTT("UE")
+        output = sum((self.rmp.x[a].solution_value - self.x_target[a]) ** 2 for a in self.network.links) 
+        output +=  sum( (self.rmp.q[(r,s)] - self.q_target[(r,s)]) ** 2 for r in self.network.origins for s in r.getDests())
         
-        for a in self.varlinks:
-            output += self.g[a] * a.add_cap
-        
+
         return output
 
-    def calcBeckmann(self, xhat, yhat):
+    def calcLLobj(self, xhat, qhat, yhat):
         total = 0
         
-        for a in self.network.links:
-            if a in self.varlinks:
-                total += a.getPrimitiveTravelTimeC(xhat[a], yhat[a])
-            else:
-                total += a.getPrimitiveTravelTimeC(xhat[a], 0)
-                
+        print(qhat)
+                    
+        total += sum(a.getPrimitiveTravelTimeC(xhat[a], 0) for a in self.network.links)
+        total += sum(r.intDinv(s, qhat[(r,s)], yhat[(r,s)]) for r in self.network.origins for s in r.getDests())  
+        
+        
         return total
             
-    def addVFCut(self, x_l, xhat, yhat):
-        yhat_ext = dict()
-        
-        B1 = self.calcBeckmann(x_l, yhat)
-        B2 = self.calcBeckmann(xhat, yhat)
-        
+    def addVFCut(self, x_l, x_f, q_l, q_f, y_l):
+        # OA on LHS from x_l, q_l
         for a in self.network.links:
-            if a in self.varlinks:
-                yhat_ext[a] = yhat[a]
-            else:
-                yhat_ext[a] = 0
-                
-        self.rmp.add_constraint(B1-B2 + sum( (self.rmp.x[a] - x_l[a]) * a.getTravelTimeC(x_l[a], yhat_ext[a], "UE") for a in self.network.links) + sum( (self.rmp.y[a] - yhat[a]) * (a.intdtdy(x_l[a], yhat[a]) - a.intdtdy(xhat[a], yhat[a])) for a in self.varlinks) <= 0)
-    
+            self.rmp.add_constraint(self.rmp.beta[a] >= a.getPrimitiveTravelTime(x_l[a]) + (self.rmp.x[a] - x_l[a]) * a.getTravelTime(x_l[a], self.network.type))
+        
+        for r in self.network.origins:
+            for s in r.getDests():
+                rho_oa = -r.intDinv(self.q_l[(r,s)], y_l[(r,s)])
+                rho_oa -= (self.rmp.q[(r,s)] - q_l[(r,s)]) * r.Dinv(q_l[(r,s)], y_l[(r,s)])
+                rho_oa -= (self.rmp.y[(r,s)] - y_l[(r,s)]) * r.intDerivDinv(q_l[(r,s)], y_l[(r,s)])
+                self.rmp.add_constraint(self.rmp.rho[(r,s)] >= rho_oa)
+            
+        self.vfcut_x.append(x_f)
+        self.vfcut_q.append(q_f)
 
+        self.rmp.vfcut.append(self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) + sum(self.rmp.rho[(r,s)] for r in self.network.origins for s in r.getDests()) <= self.calcVFRHS(len(self.vfcut_x)-1)))
       
     def addObjCut(self, xhat, qhat):
         for a in self.network.links:
-            self.rmp.add_constraint(mu_a[a] >= (xhat[a]-x_target[a]) * (xhat[a]-x_target[a]) + (self.rmp.x[a] - xhat[a])* 2*(xhat[a]-x_target[a]))
+            self.rmp.add_constraint(self.rmp.mu_a[a] >= (xhat[a]-self.x_target[a]) * (xhat[a]-self.x_target[a]) + (self.rmp.x[a] - xhat[a])* 2*(xhat[a]-self.x_target[a]))
         
     
         for r in self.network.origins:
             for s in r.getDests():
-                self.rmp.add_constraint(mu_w[(r,s)] >= (qhat[(r,s)]-q_target[(r,s)]) * (qhat[(r,s)]-q_target[(r,s)]) + (self.rmp.q[(r,s)] - qhat[(r,s)])* 2*(qhat[(r,s)]-q_target[(r,s)]))
-      
+                self.rmp.add_constraint(self.rmp.mu_w[(r,s)] >= (qhat[(r,s)]-self.q_target[(r,s)]) * (qhat[(r,s)]-self.q_target[(r,s)]) + (self.rmp.q[(r,s)] - qhat[(r,s)])* 2*(qhat[(r,s)]-self.q_target[(r,s)]))
+    
+    def updateYbounds(self):
+        for r in self.network.origins:
+            for s in r.getDests():
+                self.rmp.y_theta.rhs = self.rmp.theta[(r,s)] * (self.rmp.y_ub[(r,s)] - self.rmp.y_lb[(r,s)]) + self.rmp.y_lb[(r,s)]
+        
+        for idx in range(0, len(self.rmp.vfcut)):
+            self.rmp.vfcut[idx].rhs = self.calcVFRHS()
+    
+    def calcVFRHS(self, idx):
+        newrhs = sum(a.getPrimitiveTravelTime(self.vfcut_x[idx][a]) for a in self.network.links)
+        newrhs += - (sum(self.rmp.theta[(r,s)] * r.intDinv(self.vfcut_q[idx][(r,s)], self.rmp.y_ub[(r,s)])) + (1 - self.rmp.theta[(r,s)]) * r.intDinv(self.vfcut_q[idx][(r,s)], self.rmp.y_lb[(r,s)]) for r in self.network.origins for s in r.getDests())
+        return newrhs
+
+
     def initRMP(self):   
         self.rmp = Model()
+    
+        self.rmp.y_lb = dict()
+        self.rmp.y_ub = dict()
+
+        for r in self.network.origins:
+            for s in r.getDests():
+                self.rmp.y_lb[(r,s)] = 0
+                self.rmp.y_ub[(r,s)] = 2*r.getDemand(s) # change this!
+
+        
         self.rmp.mu_a = {a:self.rmp.continuous_var(lb=0,ub=1e10) for a in self.network.links}
         self.rmp.mu_w = {(r,s):self.rmp.continuous_var(lb=0,ub=1e10) for r in self.network.origins for s in r.getDests()}
         #self.rmp.eta = {a:self.rmp.continuous_var(lb=-1e10,ub=1e10) for a in self.network.links}
-        self.rmp.y = {a:self.rmp.continuous_var(lb=0, ub=a.max_add_cap) for a in self.varlinks}
+
         self.rmp.x = {a:self.rmp.continuous_var(lb=0, ub=self.network.TD) for a in self.network.links}
         self.rmp.xc = {(a,r):self.rmp.continuous_var(lb=0, ub=r.totaldemand) for a in self.network.links for r in self.network.origins}
         self.rmp.q = {(r,s): self.rmp.continuous_var(lb=0, ub=2*r.getDemand(s)) for r in self.network.origins for s in r.getDests()}
-        self.rmp.y = {(r,s): self.rmp.continuous_var(lb=0, ub=2*r.getDemand(s)) for r in self.network.origins for s in r.getDests()}
+        
+        
+        self.rmp.y = {(r,s): self.rmp.continuous_var(lb=0, ub=self.rmp.y_ub[(r,s)]) for r in self.network.origins for s in r.getDests()}
         self.rmp.beta = {a:self.rmp.continuous_var(lb=0,ub=1e10) for a in self.network.links}
         self.rmp.rho = {(r,s):self.rmp.continuous_var() for r in self.network.origins for s in r.getDests()}
+        self.rmp.theta = {(r,s):self.rmp.continuous_var(lb=0,ub=1) for r in self.network.origins for s in r.getDests()}
         
+        # self.rmp.y.ub = new_upper_bound
+        # self.rmp.y.lb = new_lower_bound
+        
+        
+        self.rmp.y_theta = dict()
+        self.rmp.vfcut = list()
+        
+        
+        
+        
+        qzero = {(r,s): 0 for r in self.network.origins for s in r.getDests()}
+        xzero = {a:0 for a in self.network.links}
+        
+        self.addObjCut(xzero, qzero)
+        
+        for r in self.network.origins:
+            for s in r.getDests():
+                self.rmp.y_theta = self.rmp.add_constraint(self.rmp.y[(r,s)] == self.rmp.theta[(r,s)] * (self.rmp.y_ub[(r,s)] - self.rmp.y_lb[(r,s)]) + self.rmp.y_lb[(r,s)])
         
         
         for a in self.network.links:
             self.rmp.add_constraint(sum(self.rmp.xc[(a,r)] for r in self.network.origins) == self.rmp.x[a])
+            self.rmp.add_constraint(self.rmp.beta[a] >= a.t_ff * self.rmp.x[a])
             
         for i in self.network.nodes:                    
             for r in self.network.origins:            
 
                 if i.id == r.id:
-                    dem = - sum(self.rmp.q[(r,s)] for s in self.network.zones)                
-                elif isinstance(i, type(r)) == True:
+                    dem = - sum(self.rmp.q[(r,s)] for s in r.getDests())                
+                elif isinstance(i, type(r)) == True and i in r.getDests():
                     dem = self.rmp.q[(r,i)]
                 else:
                     dem = 0
 
                 self.rmp.add_constraint(sum(self.rmp.xc[(a,r)] for a in i.incoming) - sum(self.rmp.xc[(a,r)] for a in i.outgoing) == dem)
+        
         
         
         self.rmp.minimize(sum(self.rmp.mu_a[a] for a in self.network.links) + sum(self.rmp.mu_w[(r,s)] for r in self.network.origins for s in r.getDests()))
@@ -171,11 +223,19 @@ class OA_CNDP_elastic:
         self.rmp.solve(log_output=False)
         t_solve = time.time() - t_solve
         
-        yhat = {a:self.rmp.y[a].solution_value for a in self.varlinks}
         x_l = {a:self.rmp.x[a].solution_value for a in self.network.links}
+        q_l = {(r,s): self.rmp.q[(r,s)].solution_value for r in self.network.origins for s in r.getDests()}
+        y_l = {(r,s): self.rmp.y[(r,s)].solution_value for r in self.network.origins for s in r.getDests()}
         obj_l = self.rmp.objective_value
         
-        return x_l, yhat, obj_l
+        print(obj_l)
+        
+        for r in self.network.origins:
+            for s in r.getDests():
+                if q_l[(r,s)] == 0:
+                    print(r, s, q_l[(r,s)])
+        
+        return x_l, q_l, y_l, obj_l
         
     def TAP(self, y):
     
