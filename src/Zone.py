@@ -32,7 +32,7 @@ class Zone(Node.Node):
     def demandFuncInv(self, dest, dem):
         return self.a[dest] * math.log(self.y[dest]/dem) 
         
-    def DInv(self, dest, q, y):
+    def Dinv(self, dest, q, y):
         return self.a[dest] * math.log(y / q)
         
     def intDinv(self, dest, q, y):

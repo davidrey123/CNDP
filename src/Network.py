@@ -490,8 +490,9 @@ class Network:
         
         if not self.params.warmstart:
             self.resetTapas()
-            
-        self.setY(y)
+        
+        if y is not None:    
+            self.setY(y)
         self.setType(type)
         
         iter = 1

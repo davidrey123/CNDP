@@ -42,7 +42,8 @@ class OA_CNDP_elastic:
     
     def solve(self):
        
-        timelimit = 3600
+        #timelimit = 3600
+        timelimit = 0
         iteration = 0
         starttime = time.time()
         ub = 1e15
@@ -65,14 +66,14 @@ class OA_CNDP_elastic:
             ll_l = self.calcLLobj(x_l, q_l, y_l)
             
             # solve TAP -> x, UB
-            x_f, ll_f = self.TAP(y_l)
+            x_f, q_f, obj_f = self.TAP(y_l)
 
             # add VF cut
-            self.addVFCut(x_l, q_l)
+            self.addVFCut(x_l, x_f, q_l, q_f, y_l)
             # add TSTT cut
             self.addObjCut(x_l, q_l)
             
-
+            ub = min(ub, obj_f)
             
             elapsed = time.time() - starttime
             if lb > 0:
@@ -80,7 +81,8 @@ class OA_CNDP_elastic:
             else:
                 gap = 1
             
-            print(iteration, lb, ub, gap, elapsed, ll_f, ll_l - ll_f)
+            #print(obj_f)
+            print(iteration, lb, ub, gap, elapsed, obj_f, obj_l - obj_f)
             
             #for a in self.varlinks:
             #    print("\t", a, yhat[a], a.C/2)
@@ -92,10 +94,12 @@ class OA_CNDP_elastic:
             last_x_l = x_l
             last_y_l = y_l
             last_x_l = x_l
+            
+            
     
     def calcOFV(self):
         output = sum((self.rmp.x[a].solution_value - self.x_target[a]) ** 2 for a in self.network.links) 
-        output +=  sum( (self.rmp.q[(r,s)] - self.q_target[(r,s)]) ** 2 for r in self.network.origins for s in r.getDests())
+        output +=  sum( (self.rmp.q[(r,s)].solution_value - self.q_target[(r,s)]) ** 2 for r in self.network.origins for s in r.getDests())
         
 
         return output
@@ -103,7 +107,7 @@ class OA_CNDP_elastic:
     def calcLLobj(self, xhat, qhat, yhat):
         total = 0
         
-        print(qhat)
+    
                     
         total += sum(a.getPrimitiveTravelTimeC(xhat[a], 0) for a in self.network.links)
         total += sum(r.intDinv(s, qhat[(r,s)], yhat[(r,s)]) for r in self.network.origins for s in r.getDests())  
@@ -118,15 +122,16 @@ class OA_CNDP_elastic:
         
         for r in self.network.origins:
             for s in r.getDests():
-                rho_oa = -r.intDinv(self.q_l[(r,s)], y_l[(r,s)])
-                rho_oa -= (self.rmp.q[(r,s)] - q_l[(r,s)]) * r.Dinv(q_l[(r,s)], y_l[(r,s)])
-                rho_oa -= (self.rmp.y[(r,s)] - y_l[(r,s)]) * r.intDerivDinv(q_l[(r,s)], y_l[(r,s)])
+                rho_oa = -r.intDinv(s, q_l[(r,s)], y_l[(r,s)])
+                rho_oa -= (self.rmp.q[(r,s)] - q_l[(r,s)]) * r.Dinv(s, q_l[(r,s)], y_l[(r,s)])
+                rho_oa -= (self.rmp.y[(r,s)] - y_l[(r,s)]) * r.intDerivDinv(s, q_l[(r,s)], y_l[(r,s)])
                 self.rmp.add_constraint(self.rmp.rho[(r,s)] >= rho_oa)
             
         self.vfcut_x.append(x_f)
         self.vfcut_q.append(q_f)
 
-        self.rmp.vfcut.append(self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) + sum(self.rmp.rho[(r,s)] for r in self.network.origins for s in r.getDests()) <= self.calcVFRHS(len(self.vfcut_x)-1)))
+        rhs = self.calcVFRHS(len(self.vfcut_x)-1)
+        self.rmp.vfcut.append(self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) + sum(self.rmp.rho[(r,s)] for r in self.network.origins for s in r.getDests()) <= rhs))
       
     def addObjCut(self, xhat, qhat):
         for a in self.network.links:
@@ -146,8 +151,11 @@ class OA_CNDP_elastic:
             self.rmp.vfcut[idx].rhs = self.calcVFRHS()
     
     def calcVFRHS(self, idx):
-        newrhs = sum(a.getPrimitiveTravelTime(self.vfcut_x[idx][a]) for a in self.network.links)
-        newrhs += - (sum(self.rmp.theta[(r,s)] * r.intDinv(self.vfcut_q[idx][(r,s)], self.rmp.y_ub[(r,s)])) + (1 - self.rmp.theta[(r,s)]) * r.intDinv(self.vfcut_q[idx][(r,s)], self.rmp.y_lb[(r,s)]) for r in self.network.origins for s in r.getDests())
+        newrhs = 0
+        newrhs += sum(-self.rmp.theta[(r,s)] * r.intDinv(s, self.vfcut_q[idx][(r,s)], self.rmp.y_ub[(r,s)]) for r in self.network.origins for s in r.getDests())
+        newrhs += sum(-(1-self.rmp.theta[(r,s)]) * r.intDinv(s, self.vfcut_q[idx][(r,s)], self.rmp.y_lb[(r,s)]) for r in self.network.origins for s in r.getDests())
+        
+        newrhs += sum(a.getPrimitiveTravelTime(self.vfcut_x[idx][a]) for a in self.network.links) 
         return newrhs
 
 
@@ -159,7 +167,7 @@ class OA_CNDP_elastic:
 
         for r in self.network.origins:
             for s in r.getDests():
-                self.rmp.y_lb[(r,s)] = 0
+                self.rmp.y_lb[(r,s)] = 1
                 self.rmp.y_ub[(r,s)] = 2*r.getDemand(s) # change this!
 
         
@@ -228,23 +236,20 @@ class OA_CNDP_elastic:
         y_l = {(r,s): self.rmp.y[(r,s)].solution_value for r in self.network.origins for s in r.getDests()}
         obj_l = self.rmp.objective_value
         
-        print(obj_l)
-        
-        for r in self.network.origins:
-            for s in r.getDests():
-                if q_l[(r,s)] == 0:
-                    print(r, s, q_l[(r,s)])
+    
         
         return x_l, q_l, y_l, obj_l
         
     def TAP(self, y):
     
-        for a in self.varlinks:
-            a.add_cap = y[a]
+        for r in self.network.origins:
+            for s in r.getDests():
+                r.y[s] = y[(r,s)]
             
         self.network.tapas("UE", None)
         xhat = {a:a.x for a in self.network.links}
+        qhat = {(r,s): r.bush.demand[s] for r in self.network.origins for s in r.getDests()}
         obj_f = self.calcOFV()
         
-        return xhat, obj_f
+        return xhat, qhat, obj_f
  
