@@ -1,5 +1,9 @@
 import time
 from src import Params
+from src import BB_node
+from src import Network
+from src import Zone
+from src import Link
 from docplex.mp.model import Model
 
 class OA_CNDP_elastic:
@@ -39,15 +43,120 @@ class OA_CNDP_elastic:
 
         self.vfcut_x = list()
         self.vfcut_q = list()
+        
+        self.ub = 1e15
     
     def solve(self):
-       
         timelimit = 3600
-        max_iter = 30
-        iteration = 0
         starttime = time.time()
-        ub = 1e15
+        
+        
+        self.initRMP()
+        
+        self.ub = 1e15
         lb = 0
+        
+        bb_nodes = []
+        
+        root = BB_node.BB_node(self.rmp.y_lb.copy(), self.rmp.y_ub.copy(), lb)
+        
+        bb_nodes.append(root)
+        
+        max_node_iter = 5
+        min_gap = 1e-2
+
+
+
+        max_iter = 30
+        iter = 0
+        
+        while len(bb_nodes) > 0 and iter < max_iter:
+            bb_node = bb_nodes.pop(0)
+            iter += 1
+            
+            local_lb = self.solveNode(bb_node, max_node_iter, timelimit, starttime)
+            global_lb = 1e15
+            
+            if local_lb is not None:
+                global_lb = local_lb
+
+            for n in bb_nodes:
+                global_lb = min(global_lb, n.lb)
+
+            gap = 1
+            if global_lb > 0:
+                gap = (self.ub - global_lb) / global_lb
+            elif self.ub == 0:
+                gap = 0
+
+            elapsed_time = time.time() - starttime
+
+            print(iter, global_lb, self.ub, local_lb, gap, elapsed_time)
+            
+            if gap < min_gap:
+                break
+
+            if elapsed_time > timelimit:
+                break
+
+            if local_lb is not None:
+                # iterate through y, find largest gap...
+                worst = None
+                worst_gap = 0
+                
+                total_gap = 0
+
+                for r in self.network.origins:
+                    for s in r.getDests():
+                        gap = self.calcVFgapPct(r, s)
+
+                        total_gap += gap
+
+                        if gap > worst_gap:
+                            worst_gap = gap
+                            worst = (r,s)
+
+                
+                print("\tvf gap", total_gap, worst_gap)    
+        
+                # y cannot be at ub or lb, or the gap would be 0...
+                # branch on y directly will prevent further gap there
+                
+                # do not branch unless gap exists
+                if worst is not None:
+                    y_lb_1 = bb_node.y_lb.copy()
+                    y_lb_2 = bb_node.y_lb.copy()
+                    y_ub_1 = bb_node.y_ub.copy()
+                    y_ub_2 = bb_node.y_ub.copy()
+
+                    y_lb_2[worst] = self.rmp.y[worst].solution_value
+                    y_ub_1[worst] = self.rmp.y[worst].solution_value
+
+                    left = BB_node.BB_node(y_lb_1, y_ub_1, local_lb)
+                    right = BB_node.BB_node(y_lb_2, y_ub_2, local_lb)
+                    bb_nodes.append(left)
+                    bb_nodes.append(right)
+                
+            max_node_iter = 1
+        
+    def solveNode(self, bbnode, max_iter, timelimit, starttime):
+       
+        lb = bbnode.lb
+        
+        print("\tsolving node")
+        print("\t\t", bbnode.y_lb)
+        print("\t\t", bbnode.y_ub)
+       
+        if lb > self.ub:
+            return None
+            
+        self.rmp.y_ub = bbnode.y_ub
+        self.rmp.y_lb = bbnode.y_lb
+        self.updateYbounds()
+        
+        iteration = 0
+        
+        
         gap = 1
         cutoff = 0.01
         
@@ -55,14 +164,17 @@ class OA_CNDP_elastic:
         last_y_l = {(r,s):0 for r in self.network.origins for s in r.getDests()}
         last_x_l = {a:0 for a in self.network.links}
         
-        self.initRMP()
+        
         
         while gap > cutoff and iteration < max_iter:
             iteration += 1
             
             # solve RMP -> y, LB
-            print("\tsolving RMP")
-            x_l, q_l, y_l, obj_l = self.solveRMP()
+            #print("\t\tsolving RMP")
+            status, x_l, q_l, y_l, obj_l = self.solveRMP()
+            
+            if status == 'infeasible':
+                return None
 
             lb = obj_l
 
@@ -71,7 +183,7 @@ class OA_CNDP_elastic:
             #print(y_l)
             
             # solve TAP -> x, UB
-            print("\tTAP")
+            #print("\t\tTAP")
             x_f, q_f, obj_f = self.TAP(y_l)
             ll_f = self.calcLLobj(x_f, q_f, y_l)
 
@@ -80,16 +192,17 @@ class OA_CNDP_elastic:
             # add TSTT cut
             #self.addObjCut(x_l, q_l)
             
-            ub = min(ub, obj_f)
+            self.ub = min(self.ub, obj_f)
             
             elapsed = time.time() - starttime
             if lb > 0:
-                gap = (ub - lb)/lb
+                gap = (self.ub - lb)/lb
             else:
                 gap = 1
             
             #print(obj_f)
-            print(iteration, lb, ub, gap, elapsed, ll_l, ll_f)
+            if self.network.params.PRINT_BB_BASIC:
+                print("\t", iteration, lb, self.ub, gap, elapsed, ll_l, ll_f)
             
             #for a in self.varlinks:
             #    print("\t", a, yhat[a], a.C/2)
@@ -98,21 +211,30 @@ class OA_CNDP_elastic:
             if elapsed > timelimit:
                 break
                 
-                
+            '''    
             delta_y = 0
             total_y = 0
             for r in self.network.origins:
                 for s in r.getDests():
                     delta_y += abs(y_l[(r,s)] - last_y_l[(r,s)])
                     total_y += y_l[(r,s)]
+                    
+            
             
             delta_y_pct = delta_y / total_y
-            print("\tdelta_y", delta_y_pct)   
+            print("\t\tdelta_y", delta_y, delta_y_pct)  
+            
+            total_gap = sum(self.calcVFgap(r, s) for r in self.network.origins for s in r.getDests())
+            
+            print("\t\tVF gap", total_gap) 
+            '''
+
             last_x_l = x_l
             last_y_l = y_l
             last_x_l = x_l
             
-            
+        
+        return lb    
     
     def calcOFV(self):
         output = sum((self.rmp.x[a].solution_value - self.x_target[a]) ** 2 for a in self.network.links) 
@@ -237,6 +359,8 @@ class OA_CNDP_elastic:
         
         print("vfcut", lhsc, rhsc)
         '''
+        
+    
       
     def addObjCut(self, xhat, qhat):
         for a in self.network.links:
@@ -253,7 +377,7 @@ class OA_CNDP_elastic:
                 self.rmp.y_theta.rhs = self.rmp.theta[(r,s)] * (self.rmp.y_ub[(r,s)] - self.rmp.y_lb[(r,s)]) + self.rmp.y_lb[(r,s)]
         
         for idx in range(0, len(self.rmp.vfcut)):
-            self.rmp.vfcut[idx].rhs = self.calcVFRHS()
+            self.rmp.vfcut[idx].rhs = self.calcVFRHS(idx)
     
     def calcVFRHS(self, idx):
         newrhs = 0
@@ -263,6 +387,34 @@ class OA_CNDP_elastic:
         newrhs += sum(a.getPrimitiveTravelTime(self.vfcut_x[idx][a]) for a in self.network.links) 
         return newrhs
         #return 1e15
+        
+    def calcVFgap(self, r, s):
+        theta = self.rmp.theta[(r,s)].solution_value
+        
+        output = 1e15
+        
+        for idx in range(0, len(self.vfcut_q)):
+            actual = -r.intDinv(s, self.vfcut_q[idx][(r,s)], self.rmp.y[(r,s)].solution_value)
+            approx = -(theta * r.intDinv(s, self.vfcut_q[idx][(r,s)], self.rmp.y_ub[(r,s)]) + (1-theta)*r.intDinv(s, self.vfcut_q[idx][(r,s)], self.rmp.y_lb[(r,s)]))
+            diff = approx - actual
+
+            output = min(output, diff)
+            
+        return output
+        
+    def calcVFgapPct(self, r, s):
+        theta = self.rmp.theta[(r,s)].solution_value
+        
+        output = 1e15
+        
+        for idx in range(0, len(self.vfcut_q)):
+            actual = -r.intDinv(s, self.vfcut_q[idx][(r,s)], self.rmp.y[(r,s)].solution_value)
+            approx = -(theta * r.intDinv(s, self.vfcut_q[idx][(r,s)], self.rmp.y_ub[(r,s)]) + (1-theta)*r.intDinv(s, self.vfcut_q[idx][(r,s)], self.rmp.y_lb[(r,s)]))
+            diff = approx - actual
+            #print("check", approx, actual)
+            output = min(output, diff/abs(actual))
+            
+        return output
 
     def initRMP(self):   
         self.rmp = Model()
@@ -336,6 +488,9 @@ class OA_CNDP_elastic:
         self.rmp.solve(log_output=False)
         t_solve = time.time() - t_solve
         
+        if self.rmp.solve_details.status == 'infeasible' or self.rmp.solve_details.status == 'integer infeasible':
+            return 'infeasible', dict(), dict(), dict(), 1e15
+        
         x_l = {a:self.rmp.x[a].solution_value for a in self.network.links}
         q_l = {(r,s): self.rmp.q[(r,s)].solution_value for r in self.network.origins for s in r.getDests()}
         y_l = {(r,s): self.rmp.y[(r,s)].solution_value for r in self.network.origins for s in r.getDests()}
@@ -343,7 +498,7 @@ class OA_CNDP_elastic:
         
     
         
-        return x_l, q_l, y_l, obj_l
+        return "solved", x_l, q_l, y_l, obj_l
         
     def TAP(self, y):
     

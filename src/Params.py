@@ -84,6 +84,6 @@ class Params:
         self.PRINT_PAS_DEBUG = False
         
         self.PRINT_BB_INFO = False #---prints detailed BB info
-        self.PRINT_BB_BASIC = False #---prints only basic BB info        
+        self.PRINT_BB_BASIC = True #---prints only basic BB info        
         
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now
