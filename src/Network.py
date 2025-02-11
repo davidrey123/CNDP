@@ -21,7 +21,7 @@ class Network:
         self.type = 'UE'
         self.TD = 0
         self.TC = 0 # total cost
-        self.params = Params.Params(False)
+        self.params = Params.Params(True)
         
         self.ins = ins    
         

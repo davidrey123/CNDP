@@ -47,5 +47,5 @@ test = OA_CNDP_elastic.OA_CNDP_elastic(network)
 #test = HY_CNDP.HY_CNDP(network)
 #test = CNDP_MILP.CNDP_MILP(network, 5, 5, 20, inflate_cost)
 
-#obj, tot_time, tap_time, iter, = test.solve()
+obj, tot_time, tap_time, iter, = test.solve()
 test.solve()
