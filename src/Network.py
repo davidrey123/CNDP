@@ -764,3 +764,12 @@ class Network:
                 for s in r.getDests():
                     f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(r.bush.demand[s])+"\n")
         
+        with open("data/"+self.name+"/demand_y_1.txt", "w") as f:
+            for r in self.origins:
+                for s in r.getDests():
+                    f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(r.y[s])+"\n")
+                                
+        for r in self.origins:
+            for s in r.getDests():
+                print(r, s, r.y[s])
+        
