@@ -607,7 +607,7 @@ class Network:
 
             
             
-            if gap < min_gap and (not self.params.equilibrate_demand or dem_gap < min_gap):
+            if iter > 1 and gap < min_gap and (not self.params.equilibrate_demand or dem_gap < min_gap):
                 break
                     
       

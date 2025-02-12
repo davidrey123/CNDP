@@ -38,7 +38,7 @@ class Zone(Node.Node):
     def intDinv(self, dest, q, y):
         if q == 0 or y == 0:
             print(self.id, dest.id, self.getDemand(dest), q, y)
-        return self.a[dest] * (q * math.log(y/q) + q)
+        return self.a[dest] * q * (math.log(y/q) + 1)
         
     def intDerivDinv(self, dest, q, y):
         return self.a[dest] * q / y
