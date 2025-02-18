@@ -26,25 +26,28 @@ class OA_CNDP_elastic:
 
         for line in open("data/"+self.network.name+"/linkflows_"+scenario+".txt", "r"):
             data = line.split()
-            i = int(data[0])
-            j = int(data[1])
-            x = float(data[2])
-            self.x_target[self.network.findLink(i, j)] = x
+            if len(data) > 0:
+                i = int(data[0])
+                j = int(data[1])
+                x = float(data[2])
+                self.x_target[self.network.findLink(i, j)] = x
             
         for line in open("data/"+self.network.name+"/demand_"+scenario+".txt", "r"):
             data = line.split()
-            r = int(data[0])
-            s = int(data[1])
-            q = float(data[2])
-            self.q_target[(self.network.findNode(r), self.network.findNode(s))] = q   
+            if len(data) > 0:
+                r = int(data[0])
+                s = int(data[1])
+                q = float(data[2])
+                self.q_target[(self.network.findNode(r), self.network.findNode(s))] = q   
 
         for line in open("data/"+self.network.name+"/demand_y_"+scenario+".txt", "r"):
             data = line.split()
-            r = int(data[0])
-            s = int(data[1])
-            q = float(data[2])
-            self.y_target[(self.network.findNode(r), self.network.findNode(s))] = q    
-        
+            if len(data) > 0:
+                r = int(data[0])
+                s = int(data[1])
+                y = float(data[2])
+                self.y_target[(self.network.findNode(r), self.network.findNode(s))] = y    
+
         
  
         
@@ -103,7 +106,7 @@ class OA_CNDP_elastic:
 
         global_lb = 0
 
-        max_iter = 100
+        max_iter = 30
         iter = 0
         
         print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time")
@@ -144,7 +147,7 @@ class OA_CNDP_elastic:
             if self.network.params.PRINT_BB_INFO:
                 print("--------------------")
             
-            local_lb, local_ub = self.solveNode(bb_node, max_node_iter, timelimit, starttime)
+            local_lb, local_ub, local_y = self.solveNode(bb_node, max_node_iter, timelimit, starttime)
             
             
             if local_lb is not None:
@@ -167,8 +170,9 @@ class OA_CNDP_elastic:
             
             if self.network.params.PRINT_BB_INFO:
                 print("\tsolved node", bb_node.lb, local_lb, local_ub)
-                print("\t\t", bb_node.y_lb)
-                print("\t\t", bb_node.y_ub)
+                print("\t\tlb", bb_node.y_lb)
+                print("\t\tub", bb_node.y_ub)
+                print("\t\tsol", local_y)
             
             '''
             if not self.validateFeasible():
@@ -299,6 +303,9 @@ class OA_CNDP_elastic:
         self.rmp.y_lb = bbnode.y_lb
         self.updateYbounds()
         
+        best_ub = 1e15
+        
+        y_sol = None
         iteration = 0
         
         
@@ -363,6 +370,10 @@ class OA_CNDP_elastic:
                 self.best_x = x_f
                 self.best_q = q_f
                 self.best_y = y_l
+                
+            if best_ub > obj_f:
+                best_ub = obj_f
+                y_sol = y_l
             
             elapsed = time.time() - starttime
             if lb > 0:
@@ -374,7 +385,11 @@ class OA_CNDP_elastic:
             
             #print(obj_f)
             if self.network.params.PRINT_BB_BASIC:
-                print("\tBB node", iteration, lb, self.ub, f"{gap:.2f}", f"{elapsed:.2f}", f"{ll_l:.2f}", f"{ll_f:.2f}")
+                print("\tBB node", iteration, lb, obj_f, self.ub, f"{gap:.2f}", f"{elapsed:.2f}", f"{ll_l:.2f}", f"{ll_f:.2f}")
+                
+                print("\t\t", q_l)
+                print("\t\t", q_f)
+                print("\t\tdem gap", self.calcGap(x_l, q_l, y_l))
                 
                 '''
                 if not self.validateFeasible():
@@ -386,6 +401,7 @@ class OA_CNDP_elastic:
             #    print("\t", a, yhat[a], a.C/2)
             
             if ll_l <= ll_f:
+                print("end by ll")
                 break
  
             if gap < min_gap:
@@ -401,6 +417,7 @@ class OA_CNDP_elastic:
             
             # if everything is the same, then adding another cut is pointless
             if self.isSameSolution(last_x_l, x_l, last_q_l, q_l, last_y_l, y_l):
+                print("end due to same sol")
                 break
                 
             if elapsed > timelimit:
@@ -430,7 +447,20 @@ class OA_CNDP_elastic:
             last_gap = gap
             
         
-        return lb, node_ub  
+        return lb, node_ub, y_sol
+    
+    def calcGap(self, x, q, y):
+        for a in self.network.links:
+            a.x = x[a]
+        
+        for r in self.network.origins:
+            for s in r.getDests():
+                r.bush.demand[s] = q[(r,s)]
+                r.y[s] = y[(r,s)]
+        
+        sptt, tmf, totaldemand = self.network.getSPTT(self.network.type)
+        
+        return tmf/totaldemand
         
     def isSameSolution(self, last_x, x, last_q, q, last_y, y):
         for a in self.network.links:
@@ -461,7 +491,7 @@ class OA_CNDP_elastic:
     
                     
         total += sum(a.getPrimitiveTravelTimeC(xhat[a], 0) for a in self.network.links)
-        total += sum(r.intDinv(s, qhat[(r,s)], yhat[(r,s)]) for r in self.network.origins for s in r.getDests())  
+        total -= sum(r.intDinv(s, qhat[(r,s)], yhat[(r,s)]) for r in self.network.origins for s in r.getDests())  
         
         
         return total
@@ -481,7 +511,7 @@ class OA_CNDP_elastic:
         
         # this is inefficient, I should change it!
         for p in list:
-            if abs(pt - p) < tol:
+            if abs(pt - p) < 1e-10: # was tol
                 similar = True
                 break
                 

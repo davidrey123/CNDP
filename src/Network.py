@@ -507,7 +507,7 @@ class Network:
         #self.params.line_search_gap = pow(10, math.floor(math.log10(self.TD) - 6))
         
         if self.params.PRINT_TAP_ITER:
-            print("Iteration\tTSTT\tSPTT\tgap\tAEC")
+            print("Iteration\tTSTT\tSPTT\tgap\tAEC\tdem gap\ttotal dem")
             
         last_iter_gap = 1
         
