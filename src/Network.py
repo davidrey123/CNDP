@@ -357,6 +357,7 @@ class Network:
                 output += r.bush.demand[s] * s.cost
                 
                 tmf += abs(r.bush.demand[s] - max(0, r.demandFunc(s, s.cost)))
+                
                 #print(r.bush.demand[s], r.demandFunc(s, s.cost), s.cost, r.calTT[s])
                 totaldemand += r.bush.demand[s]
 

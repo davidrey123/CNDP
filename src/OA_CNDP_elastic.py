@@ -106,20 +106,14 @@ class OA_CNDP_elastic:
 
         global_lb = 0
 
-        max_iter = 30
+        max_iter = 40
         iter = 0
         
         print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time")
         
         while len(bb_nodes) > 0 and iter < max_iter:
-        
-            if self.network.params.PRINT_BB_INFO:
-                print("\tavail nodes")
-                for n in bb_nodes:
-                    print("\t\t", n.lb, n.ub)
-
-                    print("\t\t\t", n.y_lb)
-                    print("\t\t\t", n.y_ub)
+            
+            
             
             
             
@@ -129,14 +123,34 @@ class OA_CNDP_elastic:
             best_ub = 1e15
             #best_ub = 0
             
+            # fathoming nodes with worse lb to avoid saving them
+            new_bb_nodes = list()
             for n in range(0, len(bb_nodes)):
-                if bb_nodes[n].lb < best_lb or (bb_nodes[n].lb == best_lb and bb_nodes[n].ub < best_ub):
-                    best_lb = bb_nodes[n].lb
-                    best_ub = bb_nodes[n].ub
-                    idx = n
+                if bb_nodes[n].lb < self.ub:
+                    new_bb_nodes.append(bb_nodes[n])
                     
+                    if bb_nodes[n].lb < best_lb or (bb_nodes[n].lb == best_lb and bb_nodes[n].ub < best_ub):
+                        best_lb = bb_nodes[n].lb
+                        best_ub = bb_nodes[n].ub
+                        idx = len(new_bb_nodes)-1
+                
+                
+                    
+            bb_nodes = new_bb_nodes
             
+            
+            if self.network.params.PRINT_BB_INFO:
+                print("\tavail nodes")
+                for n in bb_nodes:
+                    print("\t\t", n.lb, n.ub)
+
+                    print("\t\t\t", n.y_lb)
+                    print("\t\t\t", n.y_ub)
+                    
+                    
             bb_node = bb_nodes.pop(idx)
+            
+            
             iter += 1
             
             if bb_node.lb > self.ub:
@@ -387,9 +401,14 @@ class OA_CNDP_elastic:
             if self.network.params.PRINT_BB_BASIC:
                 print("\tBB node", iteration, lb, obj_f, self.ub, f"{gap:.2f}", f"{elapsed:.2f}", f"{ll_l:.2f}", f"{ll_f:.2f}")
                 
-                print("\t\t", q_l)
-                print("\t\t", q_f)
+                print("\t\tl", q_l, self.calcLLobj(x_l, q_l, self.rmp.y_lb), self.calcLLobj(x_l, q_l, self.rmp.y_ub))
+                print("\t\tf", q_f)
                 print("\t\tdem gap", self.calcGap(x_l, q_l, y_l))
+                
+                for r in self.network.origins:
+                    self.network.dijkstras(r, "FF")
+                    for s in r.getDests():
+                        print("\t\t", r, s, self.rmp.rho[(r,s)].solution_value, -s.cost * self.rmp.q[(r,s)].solution_value)
                 
                 '''
                 if not self.validateFeasible():
@@ -450,17 +469,25 @@ class OA_CNDP_elastic:
         return lb, node_ub, y_sol
     
     def calcGap(self, x, q, y):
+    
+        beck_diff = 0
+        dem_diff = 0
+        
         for a in self.network.links:
             a.x = x[a]
+            beck_diff += abs(a.getPrimitiveTravelTime(x[a]) - self.rmp.beta[a].solution_value)
         
         for r in self.network.origins:
             for s in r.getDests():
                 r.bush.demand[s] = q[(r,s)]
                 r.y[s] = y[(r,s)]
+                dem_diff += abs(self.rmp.rho[(r,s)].solution_value - (-r.intDinv(s, q[(r,s)], y[(r,s)])))
         
         sptt, tmf, totaldemand = self.network.getSPTT(self.network.type)
         
-        return tmf/totaldemand
+        rhs_val = sum(self.rmp.beta[a].solution_value for a in self.network.links) + sum(self.rmp.rho[(r,s)].solution_value for r in self.network.origins for s in r.getDests())
+        
+        return tmf/totaldemand, beck_diff, dem_diff, rhs_val
         
     def isSameSolution(self, last_x, x, last_q, q, last_y, y):
         for a in self.network.links:
@@ -511,7 +538,7 @@ class OA_CNDP_elastic:
         
         # this is inefficient, I should change it!
         for p in list:
-            if abs(pt - p) < 1e-10: # was tol
+            if abs(pt - p) < 1e-5: # was tol
                 similar = True
                 break
                 
@@ -676,16 +703,7 @@ class OA_CNDP_elastic:
         return rhs_term
         #return 1e15
     
-    '''  
-    def addObjCut(self, xhat, qhat):
-        for a in self.network.links:
-            self.rmp.add_constraint(self.rmp.mu_a[a] >= (xhat[a]-self.x_target[a]) ** 2 + (self.rmp.x[a] - xhat[a])* 2*(xhat[a]-self.x_target[a]))
-        
-    
-        for r in self.network.origins:
-            for s in r.getDests():
-                self.rmp.add_constraint(self.rmp.mu_w[(r,s)] >= (qhat[(r,s)]-self.q_target[(r,s)]) * (qhat[(r,s)]-self.q_target[(r,s)]) + (self.rmp.q[(r,s)] - qhat[(r,s)])* 2*(qhat[(r,s)]-self.q_target[(r,s)]))
-    '''
+
     def updateYbounds(self):
         for r in self.network.origins:
             for s in r.getDests():
