@@ -5,6 +5,8 @@ from src import Network
 from src import Zone
 from src import Link
 from docplex.mp.model import Model
+import math
+
 
 class OA_CNDP_elastic:
     
@@ -63,6 +65,11 @@ class OA_CNDP_elastic:
         self.oacut_q = dict()
         self.oacut_y = dict()
         
+        self.q_lb = dict()
+        self.q_ub = dict()
+        self.mu_lb = dict()
+        self.mu_ub = dict()
+        
         for a in self.network.links:
             self.oacut_x[a] = list()
             
@@ -97,7 +104,7 @@ class OA_CNDP_elastic:
         
         bb_nodes = []
         
-        root = BB_node.BB_node(self.rmp.y_lb.copy(), self.rmp.y_ub.copy(), lb, 1e15)
+        root = BB_node.BB_node(self.rmp.y_lb.copy(), self.rmp.y_ub.copy(), lb, 1e15, self.mu_lb, self.mu_ub)
         
         bb_nodes.append(root)
         
@@ -255,10 +262,11 @@ class OA_CNDP_elastic:
                         y_lb_2[worst] = mid
                         y_ub_1[worst] = mid
   
-                        
+                    mu_ub1 = self.calcTTs(y_ub_1)
+                    mu_lb_2 = self.calcTTs(y_lb_2)
 
-                    left = BB_node.BB_node(y_lb_1, y_ub_1, local_lb, local_ub)
-                    right = BB_node.BB_node(y_lb_2, y_ub_2, local_lb, local_ub)
+                    left = BB_node.BB_node(y_lb_1, y_ub_1, local_lb, local_ub, bb_node.mu_lb, mu_ub1)
+                    right = BB_node.BB_node(y_lb_2, y_ub_2, local_lb, local_ub, mu_lb_2, bb_node.mu_ub)
                     
                     
                     # REMOVE THIS
@@ -310,6 +318,8 @@ class OA_CNDP_elastic:
         lb = bbnode.lb
         
         
+        self.mu_lb = bbnode.mu_lb
+        self.mu_ub = bbnode.mu_ub
        
         min_gap = 1e-2
             
@@ -719,6 +729,13 @@ class OA_CNDP_elastic:
     
         #print("UPDATE y BOUNDS")
         
+        for r in self.network.origins:
+            for s in r.getDests():
+                self.rmp.remove_constraint(self.q_lb[(r,s)])
+                self.rmp.remove_constraint(self.q_ub[(r,s)])
+                
+                self.q_lb[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_lb[(r,s)] / r.a[s]))
+                self.q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_ub[(r,s)] / r.a[s]))
     
         
     def calcVFgap(self, r, s):
@@ -749,7 +766,24 @@ class OA_CNDP_elastic:
             output = min(output, diff/abs(actual))
             
         return output
-
+        
+        
+    def calcTTs(self, y):
+        output = dict()
+        
+        for r in self.network.origins:
+            for s in r.getDests():
+                r.y[s] = y[(r,s)]
+            
+        self.network.tapas("UE", None)
+        
+        for r in self.network.origins:
+            self.network.dijkstras(r, "UE")
+            for s in r.getDests():
+                output[(r,s)] = s.cost
+                
+        return output
+        
     def initRMP(self):   
         self.rmp = Model()
     
@@ -762,6 +796,10 @@ class OA_CNDP_elastic:
             for s in r.getDests():
                 self.rmp.y_lb[(r,s)] = 1
                 self.rmp.y_ub[(r,s)] = 20 # change this!
+        
+        
+        self.mu_lb = self.calcTTs(self.rmp.y_lb)
+        self.mu_ub = self.calcTTs(self.rmp.y_ub)
                 
         '''  
         for r in self.network.origins:
@@ -826,6 +864,10 @@ class OA_CNDP_elastic:
             for s in r.getDests():
                 self.rmp.y_theta[(r,s)] = self.rmp.add_constraint(self.rmp.y[(r,s)] == self.rmp.theta[(r,s)] * self.rmp.y_ub[(r,s)] + (1-self.rmp.theta[(r,s)]) * self.rmp.y_lb[(r,s)], ctname="theta_"+str(r)+"_"+str(s))
         
+        for r in self.network.origins:
+            for s in r.getDests():
+                self.q_lb[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_lb[(r,s)] / r.a[s]))
+                self.q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_ub[(r,s)] / r.a[s]))
         
         for a in self.network.links:
             self.rmp.add_constraint(sum(self.rmp.xc[(a,r)] for r in self.network.origins) == self.rmp.x[a], ctname="xc-eq_"+str(a)+"_"+str(r))
