@@ -9,4 +9,9 @@ class BB_node:
         self.ub = ub
         self.mu_lb = mu_lb
         self.mu_ub = mu_ub
+        
+        self.largest_diff = 0
+        
+        for w in y_lb.keys():
+            self.largest_diff = max(self.largest_diff, y_ub[w] - y_lb[w])
    
