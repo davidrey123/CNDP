@@ -24,7 +24,7 @@ class OA_CNDP_elastic:
         self.q_target = dict()
         self.y_target = dict()
         
-        scenario = "1"
+        scenario = "0"
 
         for line in open("data/"+self.network.name+"/linkflows_"+scenario+".txt", "r"):
             data = line.split()
@@ -172,8 +172,11 @@ class OA_CNDP_elastic:
             local_lb, local_ub, local_y = self.solveNode(bb_node, max_node_iter, timelimit, starttime)
             
             
-            if local_lb is not None:
-                global_lb = local_lb
+            if local_lb is None:
+                print(iter, "infeas")
+                continue
+                
+            global_lb = local_lb
 
             if len(bb_nodes) > 0:
                 for n in bb_nodes:
@@ -359,7 +362,10 @@ class OA_CNDP_elastic:
             #print("\t\tsolving RMP")
             status, x_l, q_l, y_l, obj_l = self.solveRMP()
             
-            y_test = self.calcY(x_l, q_l)
+            
+            print(status)
+            #exit()
+            
             
             if status == 'infeasible':
                 if self.network.params.PRINT_BB_BASIC:
@@ -371,9 +377,12 @@ class OA_CNDP_elastic:
                             
                 if valid:
                     print("INFEAS EXIT")
-                    exit()
+                    #exit()
                 
-                return None, None
+                return None, None, None
+                
+              
+            y_test = self.calcY(x_l, q_l)
 
             lb = obj_l
 
@@ -383,7 +392,7 @@ class OA_CNDP_elastic:
             
             # solve TAP -> x, UB
             #print("\t\tTAP")
-            x_f, q_f, obj_f = self.TAP(y_test)
+            x_f, q_f, obj_f = self.TAP(y_l)
             ll_f = self.calcLLobj(x_f, q_f, y_l)
             
             
@@ -391,6 +400,10 @@ class OA_CNDP_elastic:
 
 
             self.addCuts(x_l, x_f, q_l, q_f, y_l)
+            
+            if not self.validateFeasible():
+                print("TARGET INFEAS")
+                exit()
 
             
          
@@ -427,11 +440,7 @@ class OA_CNDP_elastic:
                     for s in r.getDests():
                         print("\t\t", r, s, self.rmp.rho[(r,s)].solution_value, -s.cost * self.rmp.q[(r,s)].solution_value)
                 
-                '''
-                if not self.validateFeasible():
-                    print("TARGET INFEAS")
-                    exit()
-                '''
+                
             
             #for a in self.varlinks:
             #    print("\t", a, yhat[a], a.C/2)
@@ -615,14 +624,14 @@ class OA_CNDP_elastic:
         for a in self.network.links:
             idx = self.addOApoint_x(a, x_l[a])
             if idx >= 0:
-                self.addObjCut_x(a, x_l[a], idx)
+                #self.addObjCut_x(a, x_l[a], idx)
                 self.addOACut_x(a, x_l[a], idx)
         
         for r in self.network.origins:
             for s in r.getDests():
                 idx = self.addOApoint_q(r, s, q_l[(r,s)])
                 if idx >= 0:
-                    self.addObjCut_q(r, s, q_l[(r,s)], idx)
+                    #self.addObjCut_q(r, s, q_l[(r,s)], idx)
                     self.addOACut_q(r, s, q_l[(r,s)], y_l[(r,s)], idx)
                     
         self.vfcut_x.append(x_f)
@@ -633,7 +642,13 @@ class OA_CNDP_elastic:
         
         self.vfcuts.append(self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) + sum(self.rmp.rho[(r,s)] for r in self.network.origins for s in r.getDests()) <= rhs, ctname="vfcut_"+str(idx)))
       
-        
+        '''
+        print(x_l)
+        print(x_f)
+        print(q_l)
+        print(q_f)
+        print(y_l)
+        '''
 
     def checkVFcut(self):
 
@@ -758,15 +773,15 @@ class OA_CNDP_elastic:
     
         #print("UPDATE y BOUNDS")
         
-        
-        for r in self.network.origins:
-            for s in r.getDests():
-                self.rmp.remove_constraint(self.q_lb[(r,s)])
-                self.rmp.remove_constraint(self.q_ub[(r,s)])
-                
-                self.q_lb[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_lb[(r,s)] / r.a[s]))
-                self.q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_ub[(r,s)] / r.a[s]))
-        
+        if self.network.params.y_q_link:
+            for r in self.network.origins:
+                for s in r.getDests():
+                    self.rmp.remove_constraint(self.q_lb[(r,s)])
+                    self.rmp.remove_constraint(self.q_ub[(r,s)])
+
+                    self.q_lb[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_lb[(r,s)] / r.a[s]))
+                    self.q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_ub[(r,s)] / r.a[s]))
+
         
     def calcVFgap(self, r, s):
         theta = self.rmp.theta[(r,s)].solution_value
@@ -842,9 +857,10 @@ class OA_CNDP_elastic:
                     self.rmp.y_ub[(r,s)] = 10.497948507811676
         '''
         
-        
+        '''
         self.rmp.mu_a = {a:self.rmp.continuous_var(lb=0) for a in self.network.links}
         self.rmp.mu_w = {(r,s):self.rmp.continuous_var(lb=0) for r in self.network.origins for s in r.getDests()}
+        '''
         #self.rmp.eta = {a:self.rmp.continuous_var(lb=-1e10,ub=1e10) for a in self.network.links}
 
         self.rmp.x = {a:self.rmp.continuous_var(lb=0) for a in self.network.links}
@@ -877,7 +893,7 @@ class OA_CNDP_elastic:
                 print(r, s, self.q_target[(r,s)])
         '''
         
-        
+        '''
         # avoid the x=0 solution
         for a in self.network.links:
             if self.addOApoint_x(a, 0) >= 0:
@@ -887,7 +903,7 @@ class OA_CNDP_elastic:
             for s in r.getDests():
                 if self.addOApoint_q(r, s, 0) >= 0:
                     self.addObjCut_q(r, s, 0, 0)
-        
+        '''
         
         self.rmp.y_theta = dict()
         
@@ -896,11 +912,12 @@ class OA_CNDP_elastic:
                 self.rmp.y_theta[(r,s)] = self.rmp.add_constraint(self.rmp.y[(r,s)] == self.rmp.theta[(r,s)] * self.rmp.y_ub[(r,s)] + (1-self.rmp.theta[(r,s)]) * self.rmp.y_lb[(r,s)], ctname="theta_"+str(r)+"_"+str(s))
         
         
-        for r in self.network.origins:
-            for s in r.getDests():
-                self.q_lb[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_lb[(r,s)] / r.a[s]))
-                self.q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_ub[(r,s)] / r.a[s]))
-        
+        if self.network.params.y_q_link:
+            for r in self.network.origins:
+                for s in r.getDests():
+                    self.q_lb[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_lb[(r,s)] / r.a[s]))
+                    self.q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_ub[(r,s)] / r.a[s]))
+
         
         for a in self.network.links:
             self.rmp.add_constraint(sum(self.rmp.xc[(a,r)] for r in self.network.origins) == self.rmp.x[a], ctname="xc-eq_"+str(a)+"_"+str(r))
@@ -921,7 +938,10 @@ class OA_CNDP_elastic:
                 self.rmp.add_constraint(sum(self.rmp.xc[(a,r)] for a in i.incoming) - sum(self.rmp.xc[(a,r)] for a in i.outgoing) == dem, ctname="cons_"+str(i)+"_"+str(r))
         
         
-        self.rmp.objfunc = sum(self.rmp.mu_a[a] for a in self.network.links) + sum(self.rmp.mu_w[(r,s)] for r in self.network.origins for s in r.getDests())
+        #self.rmp.objfunc = sum(self.rmp.mu_a[a] for a in self.network.links) + sum(self.rmp.mu_w[(r,s)] for r in self.network.origins for s in r.getDests())
+        self.rmp.objfunc = sum( self.rmp.x[a] * self.rmp.x[a] - 2 * self.rmp.x[a] * self.x_target[a] + self.x_target[a]*self.x_target[a]for a in self.network.links)
+        self.rmp.objfunc += sum( self.rmp.q[(r,s)]*self.rmp.q[(r,s)] - 2*self.rmp.q[(r,s)] * self.q_target[(r,s)] + self.q_target[(r,s)]*self.q_target[(r,s)] for r in self.network.origins for s in r.getDests())
+        #self.rmp.objfunc = sum(-self.rmp.q[(r,s)] for r in self.network.origins for s in r.getDests())
         self.rmp.minimize(self.rmp.objfunc)
         
     def solveRMP(self):
@@ -1006,7 +1026,7 @@ class OA_CNDP_elastic:
                     
                     
             target_solution.add_var_value(self.rmp.beta[a], a.getPrimitiveTravelTime(self.x_target[a])+0.001)
-            target_solution.add_var_value(self.rmp.mu_a[a], 0)
+            #target_solution.add_var_value(self.rmp.mu_a[a], 0)
         
         for r in self.network.origins:
             for s in r.getDests():
@@ -1014,7 +1034,7 @@ class OA_CNDP_elastic:
                 
                 target_solution.add_var_value(self.rmp.y[(r,s)], self.y_target[(r,s)])
                 target_solution.add_var_value(self.rmp.rho[(r,s)], -r.intDinv(s, self.q_target[(r,s)], self.y_target[(r,s)]))
-                target_solution.add_var_value(self.rmp.mu_w[(r,s)], 0)
+                #target_solution.add_var_value(self.rmp.mu_w[(r,s)], 0)
                 target_solution.add_var_value(self.rmp.theta[(r,s)], (self.y_target[(r,s)] - self.rmp.y[(r,s)].lb) / (self.rmp.y[(r,s)].ub - self.rmp.y[(r,s)].lb))
         
                 #print("TARGET-THETA", r, s, target_solution.get_value(self.rmp.theta[(r,s)]))
