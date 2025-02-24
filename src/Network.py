@@ -438,7 +438,7 @@ class Network:
     def setY(self, y):
     
         for r in self.origins:
-            r.setY(y[r])
+            r.setY(y)
                 
                 
 
@@ -750,6 +750,7 @@ class Network:
             self.dijkstras(r, 'UE')
             y[r] = dict()
             for s in r.destSet:
+                r.a[s] = s.cost*1.5
                 y[r][s] = r.demandFuncY(s, r.getDemand(s), s.cost*1.5)
                 
         return y

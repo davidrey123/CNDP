@@ -19,7 +19,7 @@ class Zone(Node.Node):
     
     def setY(self, ynew):
         for s in self.destSet:
-            self.y[s] = ynew[s]
+            self.y[s] = ynew[(self,s)]
         
     def demandFunc(self, dest, tt):
         #print(self.y[dest], tt, self.a[dest], math.exp(-tt/self.a[dest]), self.getDemand(dest))
@@ -44,7 +44,6 @@ class Zone(Node.Node):
         return self.a[dest] * q / y
     
     def demandFuncY(self, dest, dem, tt):
-        self.a[dest] = tt
         y = math.exp(tt/self.a[dest]) * dem
         self.calTT[dest] = tt
         
