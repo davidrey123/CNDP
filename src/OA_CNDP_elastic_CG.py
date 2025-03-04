@@ -25,6 +25,7 @@ class OA_CNDP_elastic_CG:
         self.q_target = dict()
         self.y_target = dict()
         
+        self.params = network.params
         
         scenario = "1"
 
@@ -160,7 +161,6 @@ class OA_CNDP_elastic_CG:
             # node selection logic
             idx = 0
             best_lb = 1e15
-            best_ub = 1e15
             largest_diff = 1e15
             #best_ub = 0
             
@@ -169,10 +169,17 @@ class OA_CNDP_elastic_CG:
             for n in range(0, len(bb_nodes)):
                 if bb_nodes[n].lb < self.ub:
                     new_bb_nodes.append(bb_nodes[n])
+                                    
+                    diff = 0
                     
-                    if bb_nodes[n].lb < best_lb or (bb_nodes[n].lb == best_lb and bb_nodes[n].ub < best_ub):
+                    for r in self.network.origins:
+                        for s in r.getDests():
+                            diff = max(diff, bb_nodes[n].y_ub[(r,s)] - bb_nodes[n].y_lb[(r,s)])
+
+                    
+                    if bb_nodes[n].lb < best_lb or diff > largest_diff:
                         best_lb = bb_nodes[n].lb
-                        best_ub = bb_nodes[n].ub
+                        largest_diff = diff
                         idx = len(new_bb_nodes)-1
                 
                 
@@ -296,14 +303,50 @@ class OA_CNDP_elastic_CG:
                                     worst_gap = gap
                                     worst = (r,s)
 
+                        
+                    
+                    mid = 0
+                    
+                    if self.params.branching_strategy == self.params.BRANCH_MIDPOINT:
                         mid = (bb_node.y_ub[worst] + bb_node.y_lb[worst])/2
-                        y_lb_2[worst] = mid
-                        y_ub_1[worst] = mid
+                    elif self.params.branching_strategy == self.params.BRANCH_SOL:
+                        mid = self.rmp.y[worst].solution_value
+                    elif self.params.branching_strategy == self.params.BRANCH_MAX_GAP:
+                        largest_diff = 0
+                        best_y = 0
+                        
+                        for q in self.oacut_q[worst]:
+                            if q == 0:
+                                continue
+                            y_ub = bb_node.y_ub[worst]
+                            y_lb = bb_node.y_lb[worst]
+                            
+                            
+                            a = r.a[s]
+                            
+                            
+                            #theta = (a * (y_ub-y_lb) / (a * math.log(y_ub/q) - a * math.log(y_lb/q)) - y_lb) / (y_ub-y_lb)
+                            
+                            theta = (q * a * (y_ub - y_lb) / ( r.intDinv(s, q, y_ub) - r.intDinv(s, q, y_lb) ) - y_lb) / (y_ub - y_lb)
+                            
+                            y = theta * y_ub + (1-theta) * y_lb
+                            
+                            diff = -(theta * r.intDinv(s, q, y_ub) + (1-theta) * r.intDinv(s, q, y_lb)) + r.intDinv(s, q, y)
+                            
+                            #print(theta, diff, y)
+                            
+                            
+                            if diff > largest_diff:
+                                largest_diff = diff
+                                best_y = y
+                        
+                        mid = best_y
                     else:
-                        #mid = self.rmp.y[worst].solution_value
-                        mid = (bb_node.y_ub[worst] + bb_node.y_lb[worst])/2
-                        y_lb_2[worst] = mid
-                        y_ub_1[worst] = mid
+                        print("UNKNOWN branch strategy")
+                        exit()
+                        
+                    y_lb_2[worst] = mid
+                    y_ub_1[worst] = mid
 
                     mu_ub1 = self.calcTTs(y_ub_1)
                     mu_lb_2 = self.calcTTs(y_lb_2)

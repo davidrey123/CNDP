@@ -83,7 +83,7 @@ class Params:
         self.PRINT_PARAM_ADJ = False
         self.PRINT_PAS_DEBUG = False
         
-        self.PRINT_BB_INFO = False #---prints detailed BB info
+        self.PRINT_BB_INFO = True #---prints detailed BB info
         self.PRINT_BB_BASIC = False #---prints only basic BB info        
         
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now
@@ -97,3 +97,10 @@ class Params:
         self.SOL_TOL_Y = 1e-4
         
         self.CG_tol = 1e-2
+        
+        
+        self.branching_strategy = 2
+        
+        self.BRANCH_MIDPOINT = 0
+        self.BRANCH_SOL = 1
+        self.BRANCH_MAX_GAP = 2

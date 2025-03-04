@@ -46,8 +46,8 @@ y = network.calcY()
 
 #print("TD", network.TD)
 
-test = OA_CNDP_elastic.OA_CNDP_elastic(network)
-#test = OA_CNDP_elastic_CG.OA_CNDP_elastic_CG(network, False)
+#test = OA_CNDP_elastic.OA_CNDP_elastic(network)
+test = OA_CNDP_elastic_CG.OA_CNDP_elastic_CG(network, False)
 
 #obj, tot_time, tap_time, iter, = test.solve()
 test.solve()
