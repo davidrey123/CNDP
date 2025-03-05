@@ -18,11 +18,8 @@ class Link:
         self.cost = cost
         self.OAcuts = []
         self.OABcuts = []
-        
-        if cost > 0:
-            self.max_add_cap = self.C/2
-        else:
-            self.max_add_cap = 0
+        self.max_add_cap = self.C/2
+
 
         self.visit_order = -1
         

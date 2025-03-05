@@ -91,6 +91,7 @@ class OA_CNDP_CG_SB:
         
         
         node_iter = 10
+        max_iter = 1
         
         B_f = 10000000
         obj_f = 100000000
@@ -104,7 +105,7 @@ class OA_CNDP_CG_SB:
         
         bbnodes.append(BB_node.BB_node(y_lb, y_ub, 0, 1e15))
         
-        while len(bbnodes) > 0 and gap > cutoff:
+        while iteration < max_iter and len(bbnodes) > 0 and gap > cutoff:
             iteration += 1
             
             # solve RMP -> y, LB
@@ -181,6 +182,7 @@ class OA_CNDP_CG_SB:
         
         elapsed = time.time() - starttime
             
+        print(self.best_y)
         return ub, elapsed, self.tap_time, iteration
     
     def findBranchSplit(self, a):
@@ -292,7 +294,6 @@ class OA_CNDP_CG_SB:
                     self.best_x = x_f
 
                 if iter > 1:
-                    self.addVF_OAcut(x_l, y_l)
                     self.addVF_RHScut(x_f, y_l, bbnode.y_lb, bbnode.y_ub)
             else:
                 if self.params.PRINT_BB_INFO:
@@ -301,8 +302,7 @@ class OA_CNDP_CG_SB:
                 #self.addVFCutSameY(x_l, xhat, yhat)
 
                 # y may be similar enough to skip TAP but different enough to add new cut
-                if add_cut and iter > 1:
-                    self.addVF_OAcut(x_l, y_l)
+                
 
             self.addBeckmannOACut(x_l, y_l)
             
@@ -359,7 +359,7 @@ class OA_CNDP_CG_SB:
             last_x_l = x_l
             last_lb = lb
             
-            
+        
         return "solved", lb, local_ub
     
     def calcVFgap(self, a, y):
@@ -379,7 +379,8 @@ class OA_CNDP_CG_SB:
             output = min(output, diff)
             
         return output        
-        
+     
+    '''   
     def addVF_OAcut(self, x_l, y_l):
         for a in self.network.links:
             self.xl_points[a].append(x_l[a])
@@ -389,7 +390,7 @@ class OA_CNDP_CG_SB:
                 self.rmp.add_constraint(self.rmp.beta[a] >= a.getPrimitiveTravelTimeC(x_l[a], y_l[a]) + (self.rmp.x[a] - x_l[a]) * a.getTravelTimeC(x_l[a], y_l[a], "UE") + (self.rmp.y[a] - y_l[a]) * a.intdtdy(x_l[a], y_l[a]))
             else:
                 self.rmp.add_constraint(self.rmp.beta[a] >= a.getPrimitiveTravelTimeC(x_l[a], 0) + (self.rmp.x[a] - x_l[a]) * a.getTravelTimeC(x_l[a], 0, "UE"))
-    
+    '''
     
     def addVF_RHScut(self, x_f, y_l, y_lb, y_ub):
         for a in self.varlinks:
