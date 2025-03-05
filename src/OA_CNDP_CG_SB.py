@@ -91,7 +91,7 @@ class OA_CNDP_CG_SB:
         
         
         node_iter = 10
-        max_iter = 2
+        max_iter = 20
         
         B_f = 10000000
         obj_f = 100000000
@@ -131,7 +131,13 @@ class OA_CNDP_CG_SB:
                     
             bbnodes = next_bbnodes
             
-
+            
+            if self.params.PRINT_BB_INFO:
+                print("avail nodes", len(bbnodes))
+                for n in bbnodes:
+                    print("\t", n.lb, n.ub)
+                    for a in self.varlinks:
+                        print("\t\t", a, n.y_lb[a], n.y_ub[a])
             
             del bbnodes[best_idx]
             
@@ -158,17 +164,19 @@ class OA_CNDP_CG_SB:
                 worst = self.findWorstGap()
                 split = self.findBranchSplit(worst)
                 
-                print("branch on ", worst, split)
+                if split is not None:
                 
-                
-                y_ub_1[worst] = split
-                y_lb_2[worst] = split
-                
-                left = BB_node.BB_node(y_lb_1, y_ub_1, local_lb, local_ub)
-                right = BB_node.BB_node(y_lb_2, y_ub_2, local_lb, local_ub)
+                    print("branch on ", worst, self.rmp.y[worst].lb, self.rmp.y[worst].ub, split)
 
-                bbnodes.append(left)
-                bbnodes.append(right)
+
+                    y_ub_1[worst] = split
+                    y_lb_2[worst] = split
+
+                    left = BB_node.BB_node(y_lb_1, y_ub_1, local_lb, local_ub)
+                    right = BB_node.BB_node(y_lb_2, y_ub_2, local_lb, local_ub)
+
+                    bbnodes.append(left)
+                    bbnodes.append(right)
 
             
             
@@ -206,11 +214,17 @@ class OA_CNDP_CG_SB:
             theta = (rho_two - a.C - y_lb) / (y_ub-y_lb)
             y = theta * y_ub + (1-theta) * y_lb
             
-            possible.append(y)
+            if y >= y_lb and y <= y_ub:
+                possible.append(y)
+            #else:
+                #print(a, y_lb, y, y_ub)
+            
+            
+           
             
             
         best_gap = 0
-        best_y = 0
+        best_y = None
         
         for y in possible:
             gap = self.calcVFgap(a, y)
@@ -220,6 +234,7 @@ class OA_CNDP_CG_SB:
                 best_gap = gap
                 best_y = y
                 
+ 
         return best_y
             
             

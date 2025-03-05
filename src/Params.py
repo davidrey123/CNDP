@@ -84,7 +84,7 @@ class Params:
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now
         
         
-        self.min_CNDP_gap = 1e-15
+        self.min_CNDP_gap = 1e-2
         
         self.OA_TOL_X = 1e-4
         self.OA_TOL_Y = 1e-4
