@@ -91,7 +91,7 @@ class OA_CNDP_CG_SB:
         
         
         node_iter = 10
-        max_iter = 1
+        max_iter = 2
         
         B_f = 10000000
         obj_f = 100000000
@@ -131,6 +131,7 @@ class OA_CNDP_CG_SB:
                     
             bbnodes = next_bbnodes
             
+
             
             del bbnodes[best_idx]
             
@@ -157,12 +158,17 @@ class OA_CNDP_CG_SB:
                 worst = self.findWorstGap()
                 split = self.findBranchSplit(worst)
                 
+                print("branch on ", worst, split)
+                
+                
                 y_ub_1[worst] = split
                 y_lb_2[worst] = split
                 
                 left = BB_node.BB_node(y_lb_1, y_ub_1, local_lb, local_ub)
                 right = BB_node.BB_node(y_lb_2, y_ub_2, local_lb, local_ub)
 
+                bbnodes.append(left)
+                bbnodes.append(right)
 
             
             
@@ -193,9 +199,13 @@ class OA_CNDP_CG_SB:
         y_lb = self.rmp.y[a].lb
         
         for xf in self.xf_points[a]:
-            rho = pow(((a.getPrimitiveTravelTimeC(xf, y_ub) - a.getPrimitiveTravelTimeC(xf, y_lb))/ (y_ub - y_lb) - a.t_ff*xf) / ((a.t_ff * a.alpha / (a.beta+1)) * pow(xf, a.beta+1)), 1/(a.beta+1) )
-            theta = (rho - a.C - y_lb) / (y_ub-y_lb)
+        
+            rho_one = (a.getPrimitiveTravelTimeC(xf, y_ub) - a.getPrimitiveTravelTimeC(xf, y_lb)) / ((y_ub - y_lb) * a.t_ff * a.alpha * (-a.beta-1) )
+            
+            rho_two = xf / pow(rho_one * (a.beta+1), 1.0/(a.beta+1))
+            theta = (rho_two - a.C - y_lb) / (y_ub-y_lb)
             y = theta * y_ub + (1-theta) * y_lb
+            
             possible.append(y)
             
             
@@ -204,6 +214,7 @@ class OA_CNDP_CG_SB:
         
         for y in possible:
             gap = self.calcVFgap(a, y)
+            
             
             if gap > best_gap:
                 best_gap = gap
@@ -240,6 +251,8 @@ class OA_CNDP_CG_SB:
         last_lb = 1e15
         local_ub = 1e15
         
+        self.updateYbounds(bbnode.y_lb, bbnode.y_ub)
+        
         cutoff = self.params.min_CNDP_gap
         
         iter = 0
@@ -247,11 +260,14 @@ class OA_CNDP_CG_SB:
         run_TAP = True
         add_cut = False
         
+        print("solve node")
+        
+        
         while iter < max_iter:
             iter += 1
             
             if self.useCG:
-                SP_status, obj_l, x_l, y_l = self.CG(bbnode.y_lb, bbnode.y_ub)
+                SP_status, obj_l, x_l, y_l = self.CG()
             else:
                 SP_status, obj_l, x_l, y_l = self.solveRMP()
             
@@ -272,7 +288,7 @@ class OA_CNDP_CG_SB:
 
             if run_TAP:
                 if self.params.PRINT_BB_INFO:
-                    print("\tSolving TAP")
+                    print("\t\tSolving TAP")
                 t1 = time.time()
 
 
@@ -295,24 +311,29 @@ class OA_CNDP_CG_SB:
 
                 if iter > 1:
                     self.addVF_RHScut(x_f, y_l, bbnode.y_lb, bbnode.y_ub)
+                    
+                    
             else:
                 if self.params.PRINT_BB_INFO:
                     print("\tSkipping TAP")
                 x_f = last_x_f
-                #self.addVFCutSameY(x_l, xhat, yhat)
 
                 # y may be similar enough to skip TAP but different enough to add new cut
-                
+              
+              
 
-            self.addBeckmannOACut(x_l, y_l)
+            
+            
             
                 
                 
             #self.checkVFCut(x_l, yhat, x_l, xhat, yhat)
             # add TSTT cut
-            self.addTSTTCut(x_l, y_l)
             
+            #self.addTSTTCut(x_l, y_l)
+            #self.addBeckmannOACut(x_l, y_l)
             
+            self.addXlCuts(x_l, y_l)
 
             
             elapsed = time.time() - starttime
@@ -326,7 +347,7 @@ class OA_CNDP_CG_SB:
             else:
                 gap = 1
             
-            print(iter, lb, self.best_ub, obj_f, gap, elapsed, self.tap_time)
+            print("\t", iter, lb, self.best_ub, obj_f, gap, elapsed, self.tap_time)
             
             if gap < cutoff:
                 break
@@ -334,7 +355,7 @@ class OA_CNDP_CG_SB:
             
             if self.params.PRINT_BB_INFO:
                 B_approx = sum(self.rmp.beta[a].solution_value for a in self.network.links)
-                print("Beckmann", B_l, B_f, B_l-B_f, B_approx, B_approx-B_f)
+                print("\t\tBeckmann", B_l, B_f, B_l-B_f, B_approx, B_approx-B_f)
                 
             #for a in self.network.links:
                 #print("\t", a, xhat[a], x_l[a], yhat[a])
@@ -366,6 +387,9 @@ class OA_CNDP_CG_SB:
         y_lb = self.rmp.y[a].lb
         y_ub = self.rmp.y[a].ub
         
+        if y_lb == y_ub:
+            return 0
+        
         theta = (y - y_lb) / (y_ub - y_lb)
         
         output = 1e15
@@ -375,6 +399,7 @@ class OA_CNDP_CG_SB:
             approx = theta * a.getPrimitiveTravelTimeC(x_f, y_ub) + (1-theta)* a.getPrimitiveTravelTimeC(x_f, y_lb)
             diff = approx - actual
             
+            #print("\t", actual, approx, theta, y, y_lb, y_ub)
             #print("\t\tgap", r, s, actual, approx, theta, self.rmp.y[(r,s)].solution_value, self.rmp.y[(r,s)].lb, self.rmp.y[(r,s)].ub)
             output = min(output, diff)
             
@@ -394,8 +419,9 @@ class OA_CNDP_CG_SB:
     
     def addVF_RHScut(self, x_f, y_l, y_lb, y_ub):
         for a in self.varlinks:
-            self.xf_points[a].append(x_f[a])
-            self.vf_rhs[a].append(self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) <= sum(self.calcVF_RHScut_val(a, x_f[a], y_lb, y_ub) for a in self.network.links)))
+            if self.addXfPoint(a, x_f[a]):
+                self.vf_rhs[a].append(self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) <= sum(self.calcVF_RHScut_val(a, x_f[a], y_lb, y_ub) for a in self.network.links)))
+                #print(len(self.vf_rhs[a]), len(self.xf_points[a]))
         
     def calcVF_RHScut_val(self, a, x_f, y_lb, y_ub):
         output = 0
@@ -460,21 +486,33 @@ class OA_CNDP_CG_SB:
         #print("\tadding Beckmann OA cut")
         
         for a in self.network.links:
-            y_ext = 0
-            yterm = 0
-            
-            if a in self.varlinks:
-                y_ext = yl[a]
-                yterm = (self.rmp.y[a] - yl[a]) * a.intdtdy(xl[a], yl[a]) 
-                
-            xterm = (self.rmp.x[a] - xl[a]) * a.getTravelTimeC(xl[a], y_ext, "UE")
-                
-            B = a.getPrimitiveTravelTimeC(xl[a], y_ext)
-            
-            self.rmp.add_constraint(self.rmp.beta[a] >= B + yterm + xterm)
-            #print("\tBcut", xl[a], lastx[a], a.getTravelTimeC(xl[a], y_ext, "UE"))
-        
+            self.addBeckmannOACutLink(a, xl[a], yl[a])
     
+    def addBeckmannOACutLink(self, a, xl, yl):
+        y_ext = 0
+        yterm = 0
+
+        if a in self.varlinks:
+            y_ext = yl
+            yterm = (self.rmp.y[a] - yl) * a.intdtdy(xl, yl) 
+
+        xterm = (self.rmp.x[a] - xl) * a.getTravelTimeC(xl, y_ext, "UE")
+
+        B = a.getPrimitiveTravelTimeC(xl, y_ext)
+
+        self.rmp.add_constraint(self.rmp.beta[a] >= B + yterm + xterm)
+        #print("\tBcut", xl[a], lastx[a], a.getTravelTimeC(xl[a], y_ext, "UE"))
+        
+    def addXlCuts(self, x_l, y_l):
+    
+        #print("\tadding Beckmann OA cut")
+        
+        for a in self.network.links:
+            
+            if self.addLeadPoint(a, x_l[a], y_l[a]):
+                self.addBeckmannOACutLink(a, x_l[a], y_l[a])
+                self.addTSTTCutLink(a, x_l[a], y_l[a])
+        
         
     def checkVFCut(self, x, y, x_l, xhat, yhat):
         for a in self.network.links:
@@ -485,17 +523,20 @@ class OA_CNDP_CG_SB:
     
     def addTSTTCut(self, xhat, yhat):
         for a in self.network.links:
-            if a in self.varlinks:
-                firstterm = xhat[a] * a.getTravelTimeC(xhat[a], yhat[a], "UE")
-                secondterm = a.getTravelTimeC(xhat[a], yhat[a], "UE") + xhat[a] * a.getDerivativeTravelTimeCx(xhat[a], yhat[a])
-                thirdterm = xhat[a] * a.getDerivativeTravelTimeCy(xhat[a], yhat[a])
-            
-                self.rmp.add_constraint(self.rmp.mu[a] >= firstterm + secondterm * (self.rmp.x[a] - xhat[a]) + thirdterm * (self.rmp.y[a] - yhat[a]))
-            else:
-                firstterm = xhat[a] * a.getTravelTimeC(xhat[a], 0, "UE")
-                secondterm = a.getTravelTimeC(xhat[a], 0, "UE") + xhat[a] * a.getDerivativeTravelTimeCx(xhat[a], 0)
+            self.addTSTTCutLink(a, xhat[a], yhat[a])
+                
+    def addTSTTCutLink(self, a, xhat, yhat):
+        if a in self.varlinks:
+            firstterm = xhat * a.getTravelTimeC(xhat, yhat, "UE")
+            secondterm = a.getTravelTimeC(xhat, yhat, "UE") + xhat * a.getDerivativeTravelTimeCx(xhat, yhat)
+            thirdterm = xhat * a.getDerivativeTravelTimeCy(xhat, yhat)
 
-                self.rmp.add_constraint(self.rmp.mu[a] >= firstterm + secondterm * (self.rmp.x[a] - xhat[a]))
+            self.rmp.add_constraint(self.rmp.mu[a] >= firstterm + secondterm * (self.rmp.x[a] - xhat) + thirdterm * (self.rmp.y[a] - yhat))
+        else:
+            firstterm = xhat * a.getTravelTimeC(xhat, 0, "UE")
+            secondterm = a.getTravelTimeC(xhat, 0, "UE") + xhat * a.getDerivativeTravelTimeCx(xhat, 0)
+
+            self.rmp.add_constraint(self.rmp.mu[a] >= firstterm + secondterm * (self.rmp.x[a] - xhat))
         
     
       
@@ -527,6 +568,8 @@ class OA_CNDP_CG_SB:
         self.rmp.beta = {a:self.rmp.continuous_var(lb=0) for a in self.network.links}
         
         self.rmp.y = {a:self.rmp.continuous_var(lb=0, ub=a.max_add_cap) for a in self.varlinks}
+        
+        
         self.rmp.theta = {a:self.rmp.continuous_var(lb=0, ub=1) for a in self.varlinks}
         self.theta_constraint = dict()
         
@@ -575,9 +618,13 @@ class OA_CNDP_CG_SB:
     
     
     def updateYbounds(self, y_lb, y_ub):
+        
+        
         for a in self.varlinks:
             self.rmp.y[a].lb = y_lb[a]
             self.rmp.y[a].ub = y_ub[a]
+            
+            
             self.rmp.remove_constraint(self.theta_constraint[a])
             self.theta_constraint[a] = self.rmp.add_constraint(self.rmp.y[a] == self.rmp.theta[a] * y_ub[a] + (1-self.rmp.theta[a]) * y_lb[a])
         
@@ -628,12 +675,12 @@ class OA_CNDP_CG_SB:
         self.rt_pricing += (time.time() - t0_pricing)        
         return minrc
         
-    def CG(self, y_lb, y_ub):
+    def CG(self):
         conv = False
         nCG = 0
         OFV = self.inf
         
-        self.updateYbounds(y_lb, y_ub)
+        
         
         while conv == False:
             RMP_status, OFV, link_duals, dem_duals = self.solveRMP()
@@ -735,5 +782,37 @@ class OA_CNDP_CG_SB:
             for s in self.paths[r].keys():
                 for p in self.paths[r][s]:
                     all_paths.append(p)
-        return all_paths     
+        return all_paths   
+        
+    
+    def addXfPoint(self, a, xf):
+        return self.addOApoint_helper(self.xf_points[a], xf, self.network.params.OA_TOL_X) >= 0
+        
+    def addLeadPoint(self, a, xl, yl):
+        for idx in range(0, len(self.xl_points[a])):
+            px = self.xl_points[a][idx]
+            py = self.yl_points[a][idx]
+            
+            if abs(px-xl) < self.network.params.OA_TOL_X and abs(py-yl) < self.network.params.OA_TOL_Y: # was tol
+                return False
+        
+        self.xl_points[a].append(xl)
+        self.yl_points[a].append(yl)
+        return True
+        
+    def addOApoint_helper(self, list, pt, tol):
+        # decide whether to add this point and return true or false
+        similar = False
+        
+        # this is inefficient, I should change it!
+        for p in list:
+            if abs(pt - p) < tol: # was tol
+                similar = True
+                break
+                
+        if not similar:
+            list.append(pt)
+            return len(list)-1
+        else:
+            return -1  
  

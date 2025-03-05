@@ -78,10 +78,13 @@ class Params:
         self.PRINT_PARAM_ADJ = True
         self.PRINT_PAS_DEBUG = False
         
-        self.PRINT_BB_INFO = True #---prints detailed BB info
+        self.PRINT_BB_INFO = False #---prints detailed BB info
         self.PRINT_BB_BASIC = False #---prints only basic BB info        
         
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now
         
         
-        self.min_CNDP_gap = 1e-6
+        self.min_CNDP_gap = 1e-15
+        
+        self.OA_TOL_X = 1e-4
+        self.OA_TOL_Y = 1e-4
