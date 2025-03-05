@@ -2,24 +2,24 @@
 from src import Network
 from src import OA_CNDP
 from src import OA_CNDP_CG
-from src import OA_CNDP_CS
+from src import OA_CNDP_CG_SB
 #from src import HY_CNDP
 #from src import DuGP_CNDP
 #from src import CNDP_MILP
 from decimal import Decimal
 #import polytope as pc
 
-net = 'Braess'
-ins = 'Braess_CNDP_1'
+#net = 'Braess'
+#ins = 'Braess_CNDP_1'
 
-net = 'SiouxFalls'
-ins = 'SF_CNDP_10_1'
+#net = 'SiouxFalls'
+#ins = 'SF_CNDP_10_1'
 
 #net = 'EasternMassachusetts'
 #ins = 'EM_CNDP_30_1'
 
-#net = 'HarkerFriesz'
-#ins = 'HF_CNDP_1'
+net = 'HarkerFriesz'
+ins = 'HF_CNDP_1'
 
 #net = 'BerlinMitteCenter'
 #ins = 'BMC_CNDP_30_2'
@@ -39,7 +39,7 @@ print(scale_dem * inflate_trips[net], inflate_cost, scal_flow[net])
 network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 print("TD", network.TD)
 
-test = OA_CNDP_CG.OA_CNDP_CG(network, inflate_cost, useLinkVF=True)
+test = OA_CNDP_CG_SB.OA_CNDP_CG_SB(network, inflate_cost)
 #test = HY_CNDP.HY_CNDP(network)
 #test = CNDP_MILP.CNDP_MILP(network, 5, 5, 20, inflate_cost)
 

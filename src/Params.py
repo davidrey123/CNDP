@@ -71,7 +71,7 @@ class Params:
         self.PRINT_BRANCH_INFO = False
         self.PRINT_TAPAS_INFO = False
         
-        self.PRINT_TAP_ITER = True
+        self.PRINT_TAP_ITER = False
 
         self.printBushEquilibrate = False
         self.printReducedCosts = False        
@@ -82,3 +82,6 @@ class Params:
         self.PRINT_BB_BASIC = False #---prints only basic BB info        
         
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now
+        
+        
+        self.min_CNDP_gap = 1e-6
