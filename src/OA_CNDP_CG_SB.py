@@ -48,16 +48,16 @@ class OA_CNDP_CG_SB:
         
         self.xl_points = dict()
         self.yl_points = dict()
-        self.xf_points = dict()
-        self.vf_rhs = dict()
+        self.xf_points = list()
+        self.vf_rhs_cut = list()
         
         for a in self.network.links:
             self.xl_points[a] = []
-            self.xf_points[a] = []
             
         for a in self.varlinks:
-            self.vf_rhs[a] = []
             self.yl_points[a] = []
+            
+       
         
         
     
@@ -89,9 +89,12 @@ class OA_CNDP_CG_SB:
         x_f = None
         x_l = None
         
+        first_node_iter = 20
+        other_node_iter = 5
+        node_iter = first_node_iter
         
-        node_iter = 10
-        max_iter = 20
+        
+        max_iter = 100
         
         B_f = 10000000
         obj_f = 100000000
@@ -100,8 +103,11 @@ class OA_CNDP_CG_SB:
         
         bbnodes = []
         
-        y_lb = {a:0 for a in self.varlinks}
-        y_ub = {a:a.max_add_cap for a in self.varlinks}
+        y_lb = {a:0 for a in self.network.links}
+        y_ub = {a:0 for a in self.network.links}
+        
+        for a in self.varlinks:
+            y_ub[a] = a.max_add_cap
         
         bbnodes.append(BB_node.BB_node(y_lb, y_ub, 0, 1e15))
         
@@ -135,11 +141,13 @@ class OA_CNDP_CG_SB:
             if self.params.PRINT_BB_INFO:
                 print("avail nodes", len(bbnodes))
                 for n in bbnodes:
-                    print("\t", n.lb, n.ub)
-                    for a in self.varlinks:
-                        print("\t\t", a, n.y_lb[a], n.y_ub[a])
+                    self.printNode(n)
             
             del bbnodes[best_idx]
+            
+            if self.params.PRINT_BB_INFO:
+                print("evaluate node")
+                self.printNode(best_node)
             
             status, local_lb, local_ub = self.solveNode(best_node, node_iter, starttime)
             
@@ -150,7 +158,11 @@ class OA_CNDP_CG_SB:
                 
             gap = (self.best_ub - min_lb)/min_lb
             
-            if gap < cutoff:
+            elapsed = time.time() - starttime
+            
+            print(iteration, min_lb, self.best_ub, local_ub, gap, elapsed)
+            
+            if gap < cutoff or elapsed > self.timelimit:
                 break
             
             if status == 'solved' and lb < self.best_ub:
@@ -164,9 +176,12 @@ class OA_CNDP_CG_SB:
                 worst = self.findWorstGap()
                 split = self.findBranchSplit(worst)
                 
+                
+                
                 if split is not None:
                 
-                    print("branch on ", worst, self.rmp.y[worst].lb, self.rmp.y[worst].ub, split)
+                    if self.params.PRINT_BB_INFO:
+                        print("branch on ", worst, self.rmp.y[worst].lb, self.rmp.y[worst].ub, split)
 
 
                     y_ub_1[worst] = split
@@ -178,7 +193,7 @@ class OA_CNDP_CG_SB:
                     bbnodes.append(left)
                     bbnodes.append(right)
 
-            
+            node_iter = other_node_iter
             
             
         '''   
@@ -199,6 +214,12 @@ class OA_CNDP_CG_SB:
         print(self.best_y)
         return ub, elapsed, self.tap_time, iteration
     
+    def printNode(self, n):
+        print("\t", n.lb, n.ub)
+        for a in self.varlinks:
+            print("\t\t", a, n.y_lb[a], n.y_ub[a])
+            
+            
     def findBranchSplit(self, a):
     
         possible = []
@@ -206,8 +227,9 @@ class OA_CNDP_CG_SB:
         y_ub = self.rmp.y[a].ub
         y_lb = self.rmp.y[a].lb
         
-        for xf in self.xf_points[a]:
-        
+        for xf_vec in self.xf_points:
+            xf = xf_vec[a]
+            
             rho_one = (a.getPrimitiveTravelTimeC(xf, y_ub) - a.getPrimitiveTravelTimeC(xf, y_lb)) / ((y_ub - y_lb) * a.t_ff * a.alpha * (-a.beta-1) )
             
             rho_two = xf / pow(rho_one * (a.beta+1), 1.0/(a.beta+1))
@@ -216,7 +238,8 @@ class OA_CNDP_CG_SB:
             
             if y >= y_lb and y <= y_ub:
                 possible.append(y)
-            #else:
+            else:
+                possible.append( (y_lb+y_ub)/2)
                 #print(a, y_lb, y, y_ub)
             
             
@@ -225,6 +248,8 @@ class OA_CNDP_CG_SB:
             
         best_gap = 0
         best_y = None
+        
+  
         
         for y in possible:
             gap = self.calcVFgap(a, y)
@@ -270,12 +295,14 @@ class OA_CNDP_CG_SB:
         
         cutoff = self.params.min_CNDP_gap
         
+        lb = 1e15
         iter = 0
         
         run_TAP = True
         add_cut = False
         
-        print("solve node")
+        if self.params.PRINT_BB_INFO:
+            print("solve node")
         
         
         while iter < max_iter:
@@ -294,6 +321,8 @@ class OA_CNDP_CG_SB:
             elapsed = time.time() - starttime
             
             if elapsed >= self.params.BB_timelimit:
+                if self.params.PRINT_BB_INFO:
+                    print("end due to elapsed time")
                 break
             
             lb = obj_l
@@ -354,6 +383,8 @@ class OA_CNDP_CG_SB:
             elapsed = time.time() - starttime
             
             if elapsed >= self.params.BB_timelimit:
+                if self.params.PRINT_BB_INFO:
+                    print("end due to elapsed time")
                 break
                 
 
@@ -362,7 +393,8 @@ class OA_CNDP_CG_SB:
             else:
                 gap = 1
             
-            print("\t", iter, lb, self.best_ub, obj_f, gap, elapsed, self.tap_time)
+            if self.params.PRINT_BB_BASIC:
+                print("\t", iter, lb, self.best_ub, obj_f, gap, elapsed, self.tap_time)
             
             if gap < cutoff:
                 break
@@ -377,9 +409,12 @@ class OA_CNDP_CG_SB:
                 #print("\t\t", x_l[a] * a.getTravelTimeC(x_l[a], yhat[a], "UE"), self.rmp.mu[a].solution_value)
             
             
- 
-            if elapsed > self.timelimit:
+            if iter > 1 and (lb - last_lb) / lb < 1e-3:
+                if self.params.PRINT_BB_INFO:
+                    print("end solve node due to small change")
                 break
+ 
+
                 
             run_TAP, add_cut = self.isYDifferent(y_l, last_y_l)
             
@@ -409,9 +444,9 @@ class OA_CNDP_CG_SB:
         
         output = 1e15
         
-        for x_f in self.xf_points[a]:
-            actual = a.getPrimitiveTravelTimeC(x_f, y)
-            approx = theta * a.getPrimitiveTravelTimeC(x_f, y_ub) + (1-theta)* a.getPrimitiveTravelTimeC(x_f, y_lb)
+        for x_f in self.xf_points:
+            actual = a.getPrimitiveTravelTimeC(x_f[a], y)
+            approx = theta * a.getPrimitiveTravelTimeC(x_f[a], y_ub) + (1-theta)* a.getPrimitiveTravelTimeC(x_f[a], y_lb)
             diff = approx - actual
             
             #print("\t", actual, approx, theta, y, y_lb, y_ub)
@@ -420,29 +455,45 @@ class OA_CNDP_CG_SB:
             
         return output        
      
-    '''   
-    def addVF_OAcut(self, x_l, y_l):
-        for a in self.network.links:
-            self.xl_points[a].append(x_l[a])
-            
-            if a in self.varlinks:
-                self.yl_points[a].append(y_l[a])
-                self.rmp.add_constraint(self.rmp.beta[a] >= a.getPrimitiveTravelTimeC(x_l[a], y_l[a]) + (self.rmp.x[a] - x_l[a]) * a.getTravelTimeC(x_l[a], y_l[a], "UE") + (self.rmp.y[a] - y_l[a]) * a.intdtdy(x_l[a], y_l[a]))
-            else:
-                self.rmp.add_constraint(self.rmp.beta[a] >= a.getPrimitiveTravelTimeC(x_l[a], 0) + (self.rmp.x[a] - x_l[a]) * a.getTravelTimeC(x_l[a], 0, "UE"))
-    '''
+   
     
     def addVF_RHScut(self, x_f, y_l, y_lb, y_ub):
+
+
+        if self.isDifferentX(x_f, self.xf_points):
+            self.vf_rhs_cut.append(self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) <= sum(self.calcVF_RHScut_val(a, x_f[a], y_lb[a], y_ub[a]) for a in self.network.links)))
+
+            for a in self.network.links:
+                self.xf_points.append(x_f)
+                
+    def updateYbounds(self, y_lb, y_ub):      
         for a in self.varlinks:
-            if self.addXfPoint(a, x_f[a]):
-                self.vf_rhs[a].append(self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) <= sum(self.calcVF_RHScut_val(a, x_f[a], y_lb, y_ub) for a in self.network.links)))
-                #print(len(self.vf_rhs[a]), len(self.xf_points[a]))
+            self.rmp.y[a].lb = y_lb[a]
+            self.rmp.y[a].ub = y_ub[a]
+            
+            
+            self.rmp.remove_constraint(self.theta_constraint[a])
+            self.theta_constraint[a] = self.rmp.add_constraint(self.rmp.y[a] == self.rmp.theta[a] * y_ub[a] + (1-self.rmp.theta[a]) * y_lb[a])
+        
+        for n in range(0, len(self.vf_rhs_cut)):
+            self.rmp.remove_constraint(self.vf_rhs_cut[n])
+            
+            self.vf_rhs_cut[n] = self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) <= sum(self.calcVF_RHScut_val(a, self.xf_points[n][a], y_lb[a], y_ub[a]) for a in self.network.links))
+        
+           
+                
+    def isDifferentX(self, x, x_list):
+        for xhat in x_list:
+            for a in self.network.links:
+                if abs(xhat[a] - x[a]) > self.params.OA_TOL_X:
+                    return True
+        return len(x_list) == 0
         
     def calcVF_RHScut_val(self, a, x_f, y_lb, y_ub):
         output = 0
         
         if a in self.varlinks:
-            output += self.rmp.theta[a] * a.getPrimitiveTravelTimeC(x_f, y_ub[a]) + (1-self.rmp.theta[a])* a.getPrimitiveTravelTimeC(x_f, y_lb[a])
+            output += self.rmp.theta[a] * a.getPrimitiveTravelTimeC(x_f, y_ub) + (1-self.rmp.theta[a])* a.getPrimitiveTravelTimeC(x_f, y_lb)
         else:
             output += a.getPrimitiveTravelTimeC(x_f, 0)
 
@@ -524,9 +575,14 @@ class OA_CNDP_CG_SB:
         
         for a in self.network.links:
             
-            if self.addLeadPoint(a, x_l[a], y_l[a]):
-                self.addBeckmannOACutLink(a, x_l[a], y_l[a])
-                self.addTSTTCutLink(a, x_l[a], y_l[a])
+            y_ext = 0
+            
+            if a in self.varlinks:
+                y_ext = y_l[a]
+                
+            if self.addLeadPoint(a, x_l[a], y_ext):
+                self.addBeckmannOACutLink(a, x_l[a], y_ext)
+                self.addTSTTCutLink(a, x_l[a], y_ext)
         
         
     def checkVFCut(self, x, y, x_l, xhat, yhat):
@@ -585,6 +641,7 @@ class OA_CNDP_CG_SB:
         self.rmp.y = {a:self.rmp.continuous_var(lb=0, ub=a.max_add_cap) for a in self.varlinks}
         
         
+        
         self.rmp.theta = {a:self.rmp.continuous_var(lb=0, ub=1) for a in self.varlinks}
         self.theta_constraint = dict()
         
@@ -624,7 +681,8 @@ class OA_CNDP_CG_SB:
         for a in self.network.links:
             self.rmp.add_constraint(self.rmp.mu[a] >= self.rmp.x[a] * a.t_ff)
         
-    
+        
+        
         
         
         self.rmp.minimize(sum(self.rmp.mu[a] for a in self.network.links) + sum(self.g[a] * self.rmp.y[a] for a in self.varlinks))
@@ -632,23 +690,7 @@ class OA_CNDP_CG_SB:
     
     
     
-    def updateYbounds(self, y_lb, y_ub):
-        
-        
-        for a in self.varlinks:
-            self.rmp.y[a].lb = y_lb[a]
-            self.rmp.y[a].ub = y_ub[a]
-            
-            
-            self.rmp.remove_constraint(self.theta_constraint[a])
-            self.theta_constraint[a] = self.rmp.add_constraint(self.rmp.y[a] == self.rmp.theta[a] * y_ub[a] + (1-self.rmp.theta[a]) * y_lb[a])
-        
-        
-            for n in range(0, len(self.vf_rhs[a])):
-                self.rmp.remove_constraint(self.vf_rhs[a][n])
-                self.vf_rhs[a][n] = self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) <= sum(self.calcVF_RHScut_val(a, self.xf_points[a][n], y_lb, y_ub) for a in self.network.links))
-            
-            
+    
     def pricing(self, link_duals, dem_duals):
         
         t0_pricing = time.time()
@@ -711,7 +753,7 @@ class OA_CNDP_CG_SB:
                 
             minrc = self.pricing(link_duals, dem_duals)
 
-            if self.params.PRINT_BB_INFO:
+            if self.params.PRINT_CG_INFO:
                 npaths = len(self.getPaths())
                 print('CG: %d\t%d\t%.1f\t%.2f' % (nCG,npaths,OFV,minrc))
                 
@@ -748,7 +790,7 @@ class OA_CNDP_CG_SB:
         RMP_status = self.rmp.solve_details.status
         
         
-        if self.params.PRINT_BB_INFO:
+        if self.params.PRINT_CG_INFO:
             print("\t\t", RMP_status)
         
         OFV = self.rmp.objective_value
@@ -806,13 +848,20 @@ class OA_CNDP_CG_SB:
     def addLeadPoint(self, a, xl, yl):
         for idx in range(0, len(self.xl_points[a])):
             px = self.xl_points[a][idx]
-            py = self.yl_points[a][idx]
             
-            if abs(px-xl) < self.network.params.OA_TOL_X and abs(py-yl) < self.network.params.OA_TOL_Y: # was tol
-                return False
+            if a in self.varlinks:
+                py = self.yl_points[a][idx]
+
+                if abs(px-xl) < self.network.params.OA_TOL_X and abs(py-yl) < self.network.params.OA_TOL_Y: # was tol
+                    return False
+            else:
+                if abs(px-xl) < self.network.params.OA_TOL_X:
+                    return False
         
         self.xl_points[a].append(xl)
-        self.yl_points[a].append(yl)
+        
+        if a in self.varlinks:
+            self.yl_points[a].append(yl)
         return True
         
     def addOApoint_helper(self, list, pt, tol):
