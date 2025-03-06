@@ -26,7 +26,7 @@ class Params:
         self.msa_max_iter = 500        
         self.tapas_max_iter = 100 
         self.min_gap = 1E-4
-        self.warmstart = False        
+        self.warmstart = True        
         
         #---TAPAS params
         self.bush_gap = 1e-2
@@ -65,7 +65,7 @@ class Params:
         #self.initOAheuristic = 'LocalSearchY1'
         
         #---printing    
-        self.DEBUG_CHECKS = True
+        self.DEBUG_CHECKS = False
 
         self.PRINT_PAS_INFO = False
         self.PRINT_BRANCH_INFO = False
@@ -79,7 +79,10 @@ class Params:
         self.PRINT_PAS_DEBUG = False
         
         self.PRINT_BB_INFO = True #---prints detailed BB info
-        self.PRINT_BB_BASIC = True #---prints only basic BB info        
+        self.PRINT_BB_BASIC = False #---prints only basic BB info        
+        self.PRINT_BB_NODE_DETAIL = False
+        self.PRINT_BB_NODE = False
+
         self.PRINT_CG_INFO = False
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now
         
@@ -88,3 +91,4 @@ class Params:
         
         self.OA_TOL_X = 1e-2
         self.OA_TOL_Y = 1e-2
+        self.VF_TOL_X = 1e-2
