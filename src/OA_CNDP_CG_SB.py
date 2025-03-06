@@ -2,6 +2,9 @@ import time
 from src import Params
 from docplex.mp.model import Model
 from src import BB_node
+import math
+
+
 
 class OA_CNDP_CG_SB:
     
@@ -111,10 +114,16 @@ class OA_CNDP_CG_SB:
         for a in self.varlinks:
             y_ub[a] = a.max_add_cap
         
-        bbnodes.append(BB_node.BB_node(y_lb, y_ub, 0, 1e15))
+        bbnodes.append(BB_node.BB_node(y_lb, y_ub, 0, 1e15, None, 1))
         
         while iteration < max_iter and len(bbnodes) > 0 and gap > cutoff:
             iteration += 1
+            
+            # backtrack nodes
+            
+            if self.params.BACKTRACK and iteration % self.params.BACKTRACK_INTERVAL == 1:
+                self.backtrackNodes(bbnodes, starttime, math.floor(iteration/self.params.BACKTRACK_LEVEL_INTERVAL+1))
+            
             
             # solve RMP -> y, LB
             
@@ -136,6 +145,8 @@ class OA_CNDP_CG_SB:
                         lowest_lb = n.lb
                         best_idx = idx-1
                         best_node = n
+                else:
+                    self.delNode(n)
                     
             bbnodes = next_bbnodes
             
@@ -203,8 +214,11 @@ class OA_CNDP_CG_SB:
                     y_ub_1[worst] = split
                     y_lb_2[worst] = split
 
-                    left = BB_node.BB_node(y_lb_1, y_ub_1, local_lb, local_ub)
-                    right = BB_node.BB_node(y_lb_2, y_ub_2, local_lb, local_ub)
+                    left = BB_node.BB_node(y_lb_1, y_ub_1, local_lb, local_ub, best_node, iteration)
+                    right = BB_node.BB_node(y_lb_2, y_ub_2, local_lb, local_ub, best_node, iteration)
+                    
+                    best_node.left = left
+                    best_node.right = right
 
                     bbnodes.append(left)
                     bbnodes.append(right)
@@ -222,6 +236,9 @@ class OA_CNDP_CG_SB:
             
         print(self.best_y)
         return ub, elapsed, self.tap_time, iteration
+    
+    def delNode(self, bbnode):
+        bbnode.parent.deleteChild(bbnode)
     
     def printNode(self, n):
         print("\t", n.lb, n.ub)
@@ -305,7 +322,41 @@ class OA_CNDP_CG_SB:
         
                 
         return worst
+    
+    
+    def backtrackNodes(self, bbnodes, starttime, target_level):
+        for n in bbnodes:
+            n.updated = False
+            
+        for n in bbnodes:
+            if n.level < target_level:
+                continue
+                
+            curr = n
+            
+            while curr.level > target_level:
+                curr = curr.parent
+                
+            if n.updated == False:
+                self.backtrackNode(curr, starttime)
+                    
+    def backtrackNode(self, bbnode, starttime):
+        self.updateYbounds(bbnode.y_lb, bbnode.y_ub)
         
+        if self.useCG:
+                SP_status, obj_l, x_l, y_l = self.CG()
+        else:
+            SP_status, obj_l, x_l, y_l = self.solveRMP()
+        
+        new_lb = bbnode.lb
+                
+        if SP_status == "infeasible":
+            new_lb = 1e15
+        else:
+            new_lb = obj_l
+            
+        bbnode.updateLb(new_lb, self.params.BB_tol)
+       
         
     def solveNode(self, bbnode, max_iter, starttime):
     

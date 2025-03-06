@@ -78,7 +78,7 @@ class Params:
         self.PRINT_PARAM_ADJ = False
         self.PRINT_PAS_DEBUG = False
         
-        self.PRINT_BB_INFO = True #---prints detailed BB info
+        self.PRINT_BB_INFO = False #---prints detailed BB info
         self.PRINT_BB_BASIC = False #---prints only basic BB info        
         self.PRINT_BB_NODE_DETAIL = False
         self.PRINT_BB_NODE = False
@@ -92,3 +92,8 @@ class Params:
         self.OA_TOL_X = 1e-2
         self.OA_TOL_Y = 1e-2
         self.VF_TOL_X = 1e-2
+        
+        
+        self.BACKTRACK = False
+        self.BACKTRACK_INTERVAL = 10
+        self.BACKTRACK_LEVEL_INTERVAL = 20
