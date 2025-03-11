@@ -25,7 +25,7 @@ class Params:
         #---TAP params
         self.msa_max_iter = 500        
         self.tapas_max_iter = 100 
-        self.min_gap = 1E-4
+        self.min_gap = 1E-3
         self.warmstart = True        
         
         #---TAPAS params
@@ -89,11 +89,11 @@ class Params:
         
         self.min_CNDP_gap = 1e-2
         
-        self.OA_TOL_X = 1e-2
-        self.OA_TOL_Y = 1e-2
+        self.OA_TOL_X = 2e-2
+        self.OA_TOL_Y = 2e-2
         self.VF_TOL_X = 1e-2
         
         
         self.BACKTRACK = False
         self.BACKTRACK_INTERVAL = 10
-        self.BACKTRACK_LEVEL_INTERVAL = 20
+        self.BACKTRACK_LEVEL_INTERVAL = 100

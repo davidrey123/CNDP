@@ -116,6 +116,8 @@ class OA_CNDP_CG_SB:
         
         bbnodes.append(BB_node.BB_node(y_lb, y_ub, 0, 1e15, None, 1))
         
+        print("iteration", "min LB", "best UB", "local UB", "gap", "elapsed time", "num OA cuts", "num vf cuts")
+        
         while iteration < max_iter and len(bbnodes) > 0 and gap > cutoff:
             iteration += 1
             
@@ -178,7 +180,8 @@ class OA_CNDP_CG_SB:
             
             elapsed = time.time() - starttime
             
-            print(iteration, min_lb, self.best_ub, local_ub, gap, elapsed)
+            
+            print(iteration, min_lb, self.best_ub, local_ub, gap, elapsed, sum(len(self.xl_points[a]) for a in self.network.links), len(self.xf_points))
             
             if iteration > 1 and gap < cutoff:
                 print("ending due to low gap", iteration)

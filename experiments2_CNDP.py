@@ -10,6 +10,7 @@ import math
 
 #import numpy as np
 from src import OA_CNDP_CS
+from src import OA_CNDP_CG_SB
 
 
 CG = True
@@ -42,10 +43,10 @@ inflate_costs = [
 
 
 yvarss = [
-[10,30],
-[10,30],
-[30,60],
-[30,60]
+[10,20],
+[10,20],
+[10,20],
+[10,20]
 ]
 
 #net = 'EasternMassachusetts'
@@ -66,7 +67,7 @@ scale_dem = 1
 
 
 
-for n in range (3, 4):
+for n in range (1, 4):
     net = nets[n]
     f = open("experiments_"+net+".txt", "w")
     
@@ -92,7 +93,7 @@ for n in range (3, 4):
                 print("\n\n\n", actual_ins, yvars, scale_dem, inflate_cost, CG, "\n\n\n")
 
                 network = Network.Network(net,actual_ins,b_prop,1e-0,scal_flow[net],scale_dem * inflate_trips[net])
-                test = OA_CNDP_CG.OA_CNDP_CG(network, inflate_cost, useLinkVF=True, useCG=CG)
+                test = OA_CNDP_CG_SB.OA_CNDP_CG_SB(network, inflate_cost)
                 
                 if net == "SiouxFalls":
                     test.params.min_gap = 1E-3
