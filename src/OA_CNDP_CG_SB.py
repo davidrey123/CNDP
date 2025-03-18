@@ -39,7 +39,7 @@ class OA_CNDP_CG_SB:
                 
                 self.varlinks.append(a)
                 
-        print("yvars", len(self.varlinks))
+        print("yvars", len(self.varlinks), self.getAvgLinkCost())
         
         self.paths = {r:{s:[] for s in self.network.zones} for r in self.network.origins}
         self.link_cons = dict()
@@ -241,7 +241,7 @@ class OA_CNDP_CG_SB:
         return ub, elapsed, self.tap_time, iteration
     
     def delNode(self, bbnode):
-        bbnode.parent.deleteChild(bbnode)
+        bbnode.parent.delChild(bbnode)
     
     def printNode(self, n):
         print("\t", n.lb, n.ub)

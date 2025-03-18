@@ -67,7 +67,7 @@ scale_dem = 1
 
 
 
-for n in range (1, 4):
+for n in range (0, 4):
     net = nets[n]
     f = open("experiments_"+net+".txt", "w")
     

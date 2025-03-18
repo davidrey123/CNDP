@@ -115,6 +115,8 @@ class Network:
             except ValueError:
                 cost = 0
                 
+            print(start, end, cost, line)
+            
             self.TC += cost
             
             link = Link.Link(id, start ,end, t_ff, C, alpha, beta, cost)
