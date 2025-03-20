@@ -97,7 +97,7 @@ class OA_CNDP_CG_SB:
         node_iter = first_node_iter
         
         
-        max_iter = 500
+        max_iter = 50000
         
         B_f = 10000000
         obj_f = 100000000
@@ -238,7 +238,7 @@ class OA_CNDP_CG_SB:
         elapsed = time.time() - starttime
             
         print(self.best_y)
-        return ub, elapsed, self.tap_time, iteration
+        return self.best_ub, elapsed, self.tap_time, iteration
     
     def delNode(self, bbnode):
         bbnode.parent.delChild(bbnode)
