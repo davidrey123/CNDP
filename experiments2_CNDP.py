@@ -118,9 +118,9 @@ for n in range (1, 4):
                 
                 if i == 3:
                     if k==2:
-                        f.write("\cline{2-10}\n")
+                        f.write("\cline{2-11}\n")
                     else:
-                        f.write("\cline{4-10}\n")
+                        f.write("\cline{3-11}\n")
 
                 f.flush()
             
