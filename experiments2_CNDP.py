@@ -44,9 +44,9 @@ inflate_costs = [
 
 yvarss = [
 [10,20],
-[10,20],
-[10,20],
-[10,20]
+[10,30],
+[20,30, 60],
+[20,30, 60]
 ]
 
 #net = 'EasternMassachusetts'
@@ -67,11 +67,11 @@ scale_dem = 1
 
 
 
-for n in range (0, 4):
+for n in range (1, 4):
     net = nets[n]
     f = open("experiments_"+net+".txt", "w")
     
-    for j in range (0, 2):
+    for j in range (0, len(yvarss[n])):
         yvars = yvarss[n][j]
 
 
@@ -100,7 +100,7 @@ for n in range (0, 4):
                 elif net == "EasternMassachusetts":
                     test.params.min_gap = 4E-3
                     
-                obj, tot_time, tap_time, iter, = test.solve()
+                obj, avgy, tot_time, tap_time, iter, = test.solve()
 
                 scientific_format = "{:.2e}".format(test.getAvgLinkCost())
                 
@@ -113,7 +113,7 @@ for n in range (0, 4):
                 if not(i == 1 and k==1):
                     TD_str = ""
                 
-                f.write("& "+varlinks_str +  " & " +str(i) + " & " + str(scientific_format) +  " & " + str("{:.1f}".format(obj))+ " & "+ str("{:.2f}".format(100*test.gap))+ "\% & " + str("{:.1f}".format(test.tstt))  + " & " + str("{:.2f}".format(tot_time)) + "s & "+ str("{:.2f}".format(tap_time))+ "s & " + str(iter)+" \\\\")
+                f.write("& "+varlinks_str +  " & " +str(i) + " & " + str(scientific_format) +  " & " + str("{:.1f}".format(obj))+ " & " + str("{:.3f}".format(avgy))+ " & "+ str("{:.2f}".format(100*test.gap))+ "\% & " + str("{:.1f}".format(test.tstt))  + " & " + str("{:.2f}".format(tot_time)) + "s & "+ str("{:.2f}".format(tap_time))+ "s & " + str(iter)+" \\\\")
                 f.write("\n")
                 
                 if i == 3:

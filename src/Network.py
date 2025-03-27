@@ -115,7 +115,7 @@ class Network:
             except ValueError:
                 cost = 0
                 
-            print(start, end, cost, line)
+            #print(start, end, cost, line)
             
             self.TC += cost
             

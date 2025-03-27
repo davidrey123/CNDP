@@ -12,7 +12,7 @@ import math
 from src import OA_CNDP_CS
 
 
-runMILP = True
+runMILP = False
 runOA = True
 
 

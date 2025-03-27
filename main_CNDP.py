@@ -13,16 +13,16 @@ from decimal import Decimal
 #ins = 'Braess_CNDP_1'
 
 net = 'SiouxFalls'
-ins = 'SF_CNDP_10_1'
+ins = 'SF_CNDP_20_2'
 
-net = 'EasternMassachusetts'
-ins = 'EM_CNDP_10_1'
+#net = 'EasternMassachusetts'
+#ins = 'EM_CNDP_10_1'
 
 #net = 'HarkerFriesz'
 #ins = 'HF_CNDP_1'
 
-net = 'BerlinMitteCenter'
-ins = 'BMC_CNDP_10_2'
+#net = 'BerlinMitteCenter'
+#ins = 'BMC_CNDP_60_3'
 
 #net = 'Anaheim'
 #ins = 'A_CNDP_30_1'

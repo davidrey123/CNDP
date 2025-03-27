@@ -104,6 +104,8 @@ class OA_CNDP_CG_SB:
         
         self.initRMP()
         
+        self.avgY = 0
+        
         bbnodes = []
         
         backtrack_nodes = []
@@ -116,7 +118,7 @@ class OA_CNDP_CG_SB:
         
         bbnodes.append(BB_node.BB_node(y_lb, y_ub, 0, 1e15, None, 1))
         
-        print("iteration", "min LB", "best UB", "local UB", "gap", "elapsed time", "num OA cuts", "num vf cuts")
+        print("iteration", "min LB", "best UB", "avgY", "local UB", "gap", "elapsed time", "num OA cuts", "num vf cuts")
         
         while iteration < max_iter and len(bbnodes) > 0 and gap > cutoff:
             iteration += 1
@@ -238,7 +240,17 @@ class OA_CNDP_CG_SB:
         elapsed = time.time() - starttime
             
         print(self.best_y)
-        return self.best_ub, elapsed, self.tap_time, iteration
+        return self.best_ub, self.avgY, elapsed, self.tap_time, iteration
+    
+    def calcAvgY(self, y):
+        output = 0
+        count = 0
+        
+        for a in self.varlinks:
+            output += y[a] / a.C
+            count += 1
+            
+        return output/count
     
     def delNode(self, bbnode):
         bbnode.parent.delChild(bbnode)
@@ -432,6 +444,7 @@ class OA_CNDP_CG_SB:
                     
                 if self.best_ub > obj_f:
                     self.best_ub = obj_f
+                    self.avgY = self.calcAvgY(y_l)
                     self.best_y = y_l
                     self.best_x = x_f
 
