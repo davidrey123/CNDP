@@ -504,11 +504,12 @@ class Network:
             min_gap = self.params.min_gap
         elif type == 'SO_OA_cuts':
             min_gap = self.params.min_gap_SO_OA_cuts
+
         
         #self.params.line_search_gap = pow(10, math.floor(math.log10(self.TD) - 6))
         
         if self.params.PRINT_TAP_ITER:
-            print("Iteration\tTSTT\tSPTT\tgap\tAEC\tdem gap\ttotal dem")
+            print("Iteration\tTSTT\tSPTT\tgap\tAEC\tBeckmann\tdem gap\ttotal dem")
             
         last_iter_gap = 1
         
@@ -568,6 +569,9 @@ class Network:
                             print("initial flow shifts", r)
                             printed = True
                         p.flowShift(self.type, self.params)
+                   
+                if self.params.VALIDATE_LINK_FLOW:     
+                    self.recalcLinkFlows()
                         
                         # for every active PAS
              
@@ -581,6 +585,9 @@ class Network:
                 # perform flow shift to equilibrate costs
                 modified = self.equilibratePAS(iter)
                 # redistribute flows between origins by the proportionality condition
+                
+                if self.params.VALIDATE_LINK_FLOW:  
+                    self.recalcLinkFlows()
                             
                 # in the case that no flow shifting occurred, do not try to equilibrate more
                 if not modified:
@@ -593,6 +600,8 @@ class Network:
             gap = (tstt - sptt)/tstt
             aec = (tstt - sptt)/self.TD
             
+            obj = self.calcBeckmann()
+            
             
 
             #print(iter, sptt)
@@ -604,7 +613,7 @@ class Network:
             dem_gap = tmf / totaldemand
             
             if self.params.PRINT_TAP_ITER:
-                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec)+"\t"+str(dem_gap)+"\t"+str(totaldemand))
+                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec)+"\t"+str(obj)+"\t"+str(dem_gap)+"\t"+str(totaldemand))
 
             
             
@@ -678,6 +687,18 @@ class Network:
             #print(a.start.id,a.end.id,a.x)
             
         return self.getTSTT('UE')
+    
+    
+    def calcBeckmann(self):
+        total = 0
+        
+    
+                    
+        total += sum(a.getPrimitiveTravelTimeC(a.x, 0) for a in self.links)
+        total -= sum(r.intDinv(s, r.bush.demand[s], r.y[s]) for r in self.origins for s in r.getDests())  
+        
+        
+        return total
         
     def findPAS(self, ij, bush):
         
@@ -751,15 +772,29 @@ class Network:
             y[r] = dict()
             for s in r.destSet:
                 r.a[s] = s.cost*1.5
-                y[r][s] = r.demandFuncY(s, r.getDemand(s), s.cost*1.5)
+                y[(r,s)] = r.demandFuncY(s, r.getDemand(s), s.cost*1.5)
                 
         return y
 
     def printLinkFlows(self):
         with open("data/"+self.name+"/linkflows_1.txt", "w") as f:
             for a in self.links:
-                f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(a.x)+"\n")
+                x = 0
+                for r in self.origins:
+                    x += r.bush.getFlow(a)
+                f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(x)+"\n")
                 
+        with open("data/"+self.name+"/linkflowsC_1.txt", "w") as f:
+            for a in self.links:
+                for r in self.origins:
+                    f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(r.id)+"\t"+str(r.bush.getFlow(a))+"\n")
+    
+    def recalcLinkFlows(self):
+        for a in self.links:
+            a.x = 0
+            for r in self.origins:
+                a.x += r.bush.getFlow(a)
+        
     def printODDemand(self):
         with open("data/"+self.name+"/demand_1.txt", "w") as f:
             for r in self.origins:
@@ -771,7 +806,7 @@ class Network:
                 for s in r.getDests():
                     f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(r.y[s])+"\n")
                                 
-        for r in self.origins:
-            for s in r.getDests():
-                print(r, s, r.y[s])
+        #for r in self.origins:
+            #for s in r.getDests():
+                #print(r, s, r.y[s])
         

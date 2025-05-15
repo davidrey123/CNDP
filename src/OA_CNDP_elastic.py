@@ -1086,13 +1086,19 @@ class OA_CNDP_elastic:
         
         print("TEST", output, target_solution.get_value(self.rmp.objfunc))
         
+        
+        
+        
+        for r in self.network.origins:
+            print("check ", r)
+            for s in r.destSet:
+                #print("y", r, s, self.rmp.y[(r,s)].lb, target_solution.get_value(self.rmp.y[(r,s)]), self.rmp.y[(r,s)].ub)
+                print("q", r, s, target_solution.get_value(self.rmp.q[(r,s)]), self.rmp.q_target[(r,s)])
+        
+        
+        
         unsatisfied = target_solution.find_unsatisfied_constraints(self.rmp)
         
-        '''
-        for r in self.network.origins:
-            for s in r.getDests():
-                print("y", r, s, self.rmp.y[(r,s)].lb, target_solution.get_value(self.rmp.y[(r,s)]), self.rmp.y[(r,s)].ub)
-        '''
         
         for i in unsatisfied:
             print(i)
