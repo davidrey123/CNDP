@@ -48,7 +48,7 @@ class Zone(Node.Node):
         y = math.exp(tt/self.a[dest]) * dem
         self.calTT[dest] = tt
         
-        #print("check calc ",  y * math.exp(-tt/self.a[dest]), dem, tt )
+        #print("check calc ",  dem * math.exp(-tt/self.a[dest]), self.a[dest], dem, tt, tt/self.a[dest] )
         #print("\t", y * math.exp(-tt*1.5/self.a[dest]), dem, tt*1.5)
         return y
     

@@ -26,8 +26,8 @@ class Params:
         
         #---TAP params
         self.msa_max_iter = 500        
-        self.tapas_max_iter = 100 
-        self.min_gap = 1E-2
+        self.tapas_max_iter = 200 
+        self.min_gap = 1E-4
         self.warmstart = False     
         
         self.equilibrate_demand = equilibrate_demand   
@@ -87,7 +87,7 @@ class Params:
         self.PRINT_BB_INFO = True #---prints detailed BB info
         self.PRINT_BB_BASIC = False #---prints only basic BB info       
         
-        self.VALIDATE_BASE = True # validate solution is feasible 
+        self.VALIDATE_BASE = False # validate solution is feasible 
         
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now
         

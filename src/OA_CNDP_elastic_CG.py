@@ -27,7 +27,7 @@ class OA_CNDP_elastic_CG:
         
         self.params = network.params
         
-        scenario = "1"
+        scenario = "0"
 
         for line in open("data/"+self.network.name+"/linkflows_"+scenario+".txt", "r"):
             data = line.split()
@@ -58,7 +58,7 @@ class OA_CNDP_elastic_CG:
         self.y_base = dict()
         self.xc_base = dict()
         
-        scenario = "1sol"
+        #scenario = scenario + "sol"
         
         for line in open("data/"+self.network.name+"/linkflows_"+scenario+".txt", "r"):
             data = line.split()
@@ -83,7 +83,7 @@ class OA_CNDP_elastic_CG:
                 r = int(data[0])
                 s = int(data[1])
                 q = float(data[2])
-                self.q_base[(self.network.findNode(r), self.network.findNode(s))] = q   
+                self.q_base[(self.network.findNode(r), self.network.findNode(s))] = q  
 
         for line in open("data/"+self.network.name+"/demand_y_"+scenario+".txt", "r"):
             data = line.split()
@@ -91,7 +91,7 @@ class OA_CNDP_elastic_CG:
                 r = int(data[0])
                 s = int(data[1])
                 y = float(data[2])
-                self.y_base[(self.network.findNode(r), self.network.findNode(s))] = y 
+                self.y_base[(self.network.findNode(r), self.network.findNode(s))] = y
  
         
         self.network.params.equilibrate_demand = True
@@ -152,12 +152,12 @@ class OA_CNDP_elastic_CG:
         
         bb_nodes.append(root)
         
-        max_node_iter = 10
+        max_node_iter = 30
         min_gap = 1e-2
 
         global_lb = 0
 
-        max_iter = 1
+        max_iter = 100
         iter = 0
         
         print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time")
@@ -403,9 +403,9 @@ class OA_CNDP_elastic_CG:
 
                 #max_node_iter = 1
 
-        
-        print("best obj", self.calcOFV(self.best_x, self.best_q))
-        #self.printSolution(self.best_x, self.best_q, self.best_y)
+        if self.network.params.PRINT_BB_INFO:
+            print("best obj", self.calcOFV(self.best_x, self.best_q))
+            #self.printSolution(self.best_x, self.best_q, self.best_y)
         
             
         
@@ -483,15 +483,21 @@ class OA_CNDP_elastic_CG:
                 
                 return status, None, None, None
             
+            y_test = self.network.calcY(x_l, q_l)
+            
+            
+            
             ''' 
             for a in self.network.links:
                 print(a, x_l[a], self.x_target[a])
-                
+            '''
+            
+            '''
             for r in self.network.origins:
                 for s in r.destSet:
-                    print( (r,s), q_l[(r,s)], self.q_target[(r,s)])
+                    print( (r,s), q_l[(r,s)], self.q_target[(r,s)], y_test[(r,s)], self.y_target[(r,s)])
             '''    
-            y_test = self.calcY(x_l, q_l)
+            
             
             
 
@@ -507,12 +513,24 @@ class OA_CNDP_elastic_CG:
             ll_f = self.calcLLobj(x_f, q_f, y_l)
             
             
+            #for a in self.network.links:
+            #    print(a, x_f[a], self.x_base[a])
+            
+            '''
+            y_test2 = self.network.calcY(self.x_target, self.q_target)
+            
+            for r in self.network.origins:
+                for s in r.destSet:
+                    print( (r,s), y_test[(r,s)], y_test2[(r,s)], self.y_target[(r,s)], q_l[(r,s)], self.q_target[(r,s)])
+            '''
+            print("rmp obj ", obj_l, self.calcOFV(x_l, q_l))
+            
             #self.printSolution(x_l, q_l, y_l)
 
 
             self.addCuts(x_l, x_f, q_l, q_f, y_l)
 
-            print("obj f", obj_f, "ll l", ll_l, "ll f", ll_f)
+            print("obj f", obj_f, "ll-obj l", ll_l, "ll-obj f", ll_f)
             
          
             node_ub = min(node_ub, obj_f)
@@ -565,14 +583,16 @@ class OA_CNDP_elastic_CG:
             #    print("\t", a, yhat[a], a.C/2)
             
             if ll_l <= ll_f:
-                #print("end by ll")
+                print("end by ll")
                 break
  
             if gap < min_gap:
+                print("end by low gap")
                 break
                 
             # lb is worse than best ub
             if lb > self.ub:
+                print("end b/c lb > ub")
                 break
                 
             # no improvement due to weak vf cut
@@ -581,7 +601,7 @@ class OA_CNDP_elastic_CG:
             
             # if everything is the same, then adding another cut is pointless
             if self.isSameSolution(last_x_l, x_l, last_q_l, q_l, last_y_l, y_l):
-                #print("end due to same sol")
+                print("end due to same sol")
                 break
                 
             if elapsed > timelimit:
@@ -614,19 +634,7 @@ class OA_CNDP_elastic_CG:
         return "solved", lb, node_ub, y_sol
         
         
-    def calcY(self, x, q):
-        output = dict()
-        
-        for a in self.network.links:
-            a.x = x[a]
-        
-        for r in self.network.origins:
-            self.network.dijkstras(r, "UE")
-            
-            for s in r.getDests():
-                output[(r,s)] = r.demandFuncY(s, q[(r,s)], s.cost)
-            
-        return output
+
         
     def equalsY(self, y_lhs, y_rhs):
         tol = 1e-4
@@ -741,17 +749,35 @@ class OA_CNDP_elastic_CG:
         
     def addCuts(self, x_l, x_f, q_l, q_f, y_l):
         for a in self.network.links:
-            idx = self.addOApoint_x(a, x_l[a])
-            if idx >= 0:
-                self.addObjCut_x(a, x_l[a], idx)
-                self.addOACut_x(a, x_l[a], idx)
+            
+            add = True
+            for x_save in self.x_saved[a]:
+                if abs(x_l[a] - x_save) < a.C * 0.01:
+                    add = False
+                    break
+            
+            if add:
+                self.x_saved[a].append(x_l[a])
+                idx = self.addOApoint_x(a, x_l[a])
+                if idx >= 0:
+                    self.addObjCut_x(a, x_l[a], idx)
+                    self.addOACut_x(a, x_l[a], idx)
         
         for r in self.network.origins:
             for s in r.getDests():
-                idx = self.addOApoint_q(r, s, q_l[(r,s)])
-                if idx >= 0:
-                    self.addObjCut_q(r, s, q_l[(r,s)], idx)
-                    self.addOACut_q(r, s, q_l[(r,s)], y_l[(r,s)], idx)
+                
+                add = True
+                for q_save in self.q_saved[(r,s)]:
+                    if abs(q_save - q_l[(r,s)]) < 0.01:
+                        add = False
+                        break
+                
+                if add:
+                    self.q_saved[(r,s)].append(q_l[(r,s)])
+                    idx = self.addOApoint_q(r, s, q_l[(r,s)])
+                    if idx >= 0:
+                        self.addObjCut_q(r, s, q_l[(r,s)], idx)
+                        self.addOACut_q(r, s, q_l[(r,s)], y_l[(r,s)], idx)
                     
         self.vfcut_x.append(x_f)
         self.vfcut_q.append(q_f)
@@ -759,8 +785,8 @@ class OA_CNDP_elastic_CG:
 
         rhs = self.calcVFRHS(x_f, q_f, self.rmp.theta)
         
-        self.vfcuts.append(self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) + sum(self.rmp.rho[(r,s)] for r in self.network.origins for s in r.getDests()) <= rhs, ctname="vfcut_"+str(idx)))
-      
+        self.vfcuts.append(self.rmp.add_constraint(sum(self.rmp.beta[a] for a in self.network.links) + sum(self.rmp.rho[(r,s)] for r in self.network.origins for s in r.getDests()) <= rhs, ctname="vfcut_"+str(self.cut_idx)))
+        self.cut_idx += 1
         
 
     def checkVFcut(self):
@@ -950,6 +976,17 @@ class OA_CNDP_elastic_CG:
         
     def initRMP(self):   
         self.rmp = Model()
+        
+        self.cut_idx = 0
+        self.x_saved = dict()
+        self.q_saved = dict()
+        
+        for a in self.network.links:
+            self.x_saved[a] = list()
+
+        for r in self.network.origins:
+            for s in r.destSet:
+                self.q_saved[(r,s)] = list()
     
         self.rmp.y_lb = dict()
         self.rmp.y_ub = dict()
@@ -958,8 +995,8 @@ class OA_CNDP_elastic_CG:
 
         for r in self.network.origins:
             for s in r.getDests():
-                self.rmp.y_lb[(r,s)] = 0.1
-                self.rmp.y_ub[(r,s)] = 20 # change this!
+                self.rmp.y_lb[(r,s)] = 1
+                self.rmp.y_ub[(r,s)] = 1200 # change this!
         
         
         self.mu_lb = self.calcTTs(self.rmp.y_lb)
@@ -1153,7 +1190,7 @@ class OA_CNDP_elastic_CG:
             for s in r.getDests():   
                 
                 if self.y_base[(r,s)] < self.rmp.y[(r,s)].lb or self.y_base[(r,s)] > self.rmp.y[(r,s)].ub:
-                    print(self.y_base[(r,s)], self.rmp.y[(r,s)].lb, self.rmp.y[(r,s)].ub)
+                    print("INVALID", (r,s), self.y_base[(r,s)], self.rmp.y[(r,s)].lb, self.rmp.y[(r,s)].ub)
                     return False
         return True
         
@@ -1208,7 +1245,7 @@ class OA_CNDP_elastic_CG:
         
         unsatisfied = target_solution.find_unsatisfied_constraints(self.rmp)
         
-        
+        print("UNSATISFIED: ", len(unsatisfied))
         for i in unsatisfied:
             print(i)
             print("\t", target_solution.get_value(i.lhs), target_solution.get_value(i.rhs))

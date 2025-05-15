@@ -486,6 +486,7 @@ class Network:
         self.params = Params.Params(self.params.equilibrate_demand)
         
         self.allPAS = PASList.PASList()
+        
     
     def tapas(self, type, y):
         
@@ -504,6 +505,7 @@ class Network:
             min_gap = self.params.min_gap
         elif type == 'SO_OA_cuts':
             min_gap = self.params.min_gap_SO_OA_cuts
+            
 
         
         #self.params.line_search_gap = pow(10, math.floor(math.log10(self.TD) - 6))
@@ -682,12 +684,38 @@ class Network:
             iter += 1
         
         #---rounding link flows for numerical stability
-        for a in self.links:
-            a.x = round(a.x,self.params.rd)
+        #for a in self.links:
+        #    a.x = round(a.x,self.params.rd)
             #print(a.start.id,a.end.id,a.x)
-            
+        
+        self.recalcLinkFlows()
+        
+        q = {(r,s): r.bush.demand[s] for r in self.origins for s in r.destSet}
+        x = {a : a.x for a in self.links}
+        
+        y = self.calcY(x, q)
+        
+        #for r in self.origins:
+        #    for s in r.destSet:
+        #        print((r,s), y[(r,s)], r.y[s])
+        
         return self.getTSTT('UE')
     
+    
+    def calcY(self, x, q):
+        output = dict()
+        
+        for a in self.links:
+            a.x = x[a]
+        
+        for r in self.origins:
+            self.dijkstras(r, "UE")
+            
+            for s in r.getDests():
+                output[(r,s)] = r.demandFuncY(s, q[(r,s)], s.cost)
+                #print((r,s), r.demandFuncInv(s, q[(r,s)]), s.cost)
+            
+        return output
     
     def calcBeckmann(self):
         total = 0
@@ -764,7 +792,7 @@ class Network:
         for p in removed:
             self.removeAPAS(p)
             
-    def calcY(self):
+    def initCalcY(self):
 
         y = dict()
         for r in self.origins:
@@ -777,14 +805,14 @@ class Network:
         return y
 
     def printLinkFlows(self):
-        with open("data/"+self.name+"/linkflows_1.txt", "w") as f:
+        with open("data/"+self.name+"/linkflows_0.txt", "w") as f:
             for a in self.links:
                 x = 0
                 for r in self.origins:
                     x += r.bush.getFlow(a)
                 f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(x)+"\n")
                 
-        with open("data/"+self.name+"/linkflowsC_1.txt", "w") as f:
+        with open("data/"+self.name+"/linkflowsC_0.txt", "w") as f:
             for a in self.links:
                 for r in self.origins:
                     f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(r.id)+"\t"+str(r.bush.getFlow(a))+"\n")
@@ -796,12 +824,12 @@ class Network:
                 a.x += r.bush.getFlow(a)
         
     def printODDemand(self):
-        with open("data/"+self.name+"/demand_1.txt", "w") as f:
+        with open("data/"+self.name+"/demand_0.txt", "w") as f:
             for r in self.origins:
                 for s in r.getDests():
                     f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(r.bush.demand[s])+"\n")
         
-        with open("data/"+self.name+"/demand_y_1.txt", "w") as f:
+        with open("data/"+self.name+"/demand_y_0.txt", "w") as f:
             for r in self.origins:
                 for s in r.getDests():
                     f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(r.y[s])+"\n")
