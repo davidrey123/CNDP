@@ -24,7 +24,7 @@ ins = 'SF_CNDP_10_1'
 #ins = 'A_CNDP_30_1'
 
 b_prop = 0.5
-scal_flow = {'SiouxFalls':1e-1,'EasternMassachusetts':1e-3,'BerlinMitteCenter':1e-3,'Anaheim':1e-3,'Barcelona':1e-3, 'Braess':1, 'HarkerFriesz':1}
+scal_flow = {'SiouxFalls':1e-2,'EasternMassachusetts':1e-3,'BerlinMitteCenter':1e-3,'Anaheim':1e-3,'Barcelona':1e-3, 'Braess':1, 'HarkerFriesz':1}
 inflate_trips = {'SiouxFalls':1,'EasternMassachusetts':4,'BerlinMitteCenter':2,'Anaheim':4,'Barcelona':2, 'Braess':1, 'HarkerFriesz':0.25}
 print(net,ins)
 
