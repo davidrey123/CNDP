@@ -27,7 +27,7 @@ class OA_CNDP_elastic_CG:
         
         self.params = network.params
         
-        scenario = "0"
+        scenario = "1"
 
         for line in open("data/"+self.network.name+"/linkflows_"+scenario+".txt", "r"):
             data = line.split()
@@ -58,7 +58,7 @@ class OA_CNDP_elastic_CG:
         self.y_base = dict()
         self.xc_base = dict()
         
-        #scenario = scenario + "sol"
+        scenario = scenario + "sol"
         
         for line in open("data/"+self.network.name+"/linkflows_"+scenario+".txt", "r"):
             data = line.split()
@@ -150,6 +150,7 @@ class OA_CNDP_elastic_CG:
         
         root = BB_node.BB_node(self.rmp.y_lb.copy(), self.rmp.y_ub.copy(), lb, 1e15, self.mu_lb, self.mu_ub)
         
+        
         bb_nodes.append(root)
         
         max_node_iter = 30
@@ -202,8 +203,8 @@ class OA_CNDP_elastic_CG:
                 for n in bb_nodes:
                     print("\t\t", n.lb, n.ub)
 
-                    #print("\t\t\t", n.y_lb)
-                    #print("\t\t\t", n.y_ub)
+                    print("\t\t\t", n.y_lb)
+                    print("\t\t\t", n.y_ub)
                     
                     
             bb_node = bb_nodes.pop(idx)
@@ -224,7 +225,7 @@ class OA_CNDP_elastic_CG:
 
 
             if status == "infeasible":
-                print("\tsolved node --- fathom infeasible")
+                print(iter, "solved node --- fathom infeasible")
                 continue
                  
             global_lb = local_lb
@@ -246,8 +247,8 @@ class OA_CNDP_elastic_CG:
 
             if self.network.params.PRINT_BB_INFO:
                 print("\tsolved node", bb_node.lb, local_lb, local_ub)
-                #print("\t\tlb", bb_node.y_lb)
-                #print("\t\tub", bb_node.y_ub)
+                print("\t\tlb", bb_node.y_lb)
+                print("\t\tub", bb_node.y_ub)
                 #print("\t\tsol", local_y)
 
                 
@@ -298,10 +299,13 @@ class OA_CNDP_elastic_CG:
                 '''
 
                 if branch:
+                    
+                    
                     y_lb_1 = bb_node.y_lb.copy()
                     y_lb_2 = bb_node.y_lb.copy()
                     y_ub_1 = bb_node.y_ub.copy()
                     y_ub_2 = bb_node.y_ub.copy()
+                    
 
                     if worst is None:
                         worst_gap = 0
@@ -338,13 +342,16 @@ class OA_CNDP_elastic_CG:
                             
                             #theta = (a * (y_ub-y_lb) / (a * math.log(y_ub/q) - a * math.log(y_lb/q)) - y_lb) / (y_ub-y_lb)
                             
-                            theta = (q * a * (y_ub - y_lb) / ( r.intDinv(s, q, y_ub) - r.intDinv(s, q, y_lb) ) - y_lb) / (y_ub - y_lb)
+                            theta = (-r.intDinv(s, q, y_ub) + r.intDinv(s, q, y_lb) - 2 * a * (y_ub-y_lb)/q ) / (2 * a * (y_ub - y_lb) * (y_ub - y_lb)/q)
                             
+                            if theta < 0 or theta > 1:
+                                theta = 0.5
+                                
                             y = theta * y_ub + (1-theta) * y_lb
                             
                             diff = -(theta * r.intDinv(s, q, y_ub) + (1-theta) * r.intDinv(s, q, y_lb)) + r.intDinv(s, q, y)
                             
-                            #print(theta, diff, y)
+                            print("best y check", theta, diff, y)
                             
                             
                             if diff > largest_diff:
@@ -356,6 +363,7 @@ class OA_CNDP_elastic_CG:
                         print("UNKNOWN branch strategy")
                         exit()
                         
+                    print("branching", worst, mid)
                     y_lb_2[worst] = mid
                     y_ub_1[worst] = mid
 
@@ -485,6 +493,12 @@ class OA_CNDP_elastic_CG:
             
             y_test = self.network.calcY(x_l, q_l)
             
+            for r in self.network.origins:
+                for s in r.destSet:
+                    if y_test[(r,s)] > self.rmp.y[(r,s)].ub:
+                       y_test[(r,s)] =  self.rmp.y[(r,s)].ub
+                    elif y_test[(r,s)] < self.rmp.y[(r,s)].lb:
+                       y_test[(r,s)] =  self.rmp.y[(r,s)].lb
             
             
             ''' 
@@ -492,11 +506,11 @@ class OA_CNDP_elastic_CG:
                 print(a, x_l[a], self.x_target[a])
             '''
             
-            '''
+            
             for r in self.network.origins:
                 for s in r.destSet:
                     print( (r,s), q_l[(r,s)], self.q_target[(r,s)], y_test[(r,s)], self.y_target[(r,s)])
-            '''    
+                
             
             
             
@@ -582,12 +596,14 @@ class OA_CNDP_elastic_CG:
             #for a in self.varlinks:
             #    print("\t", a, yhat[a], a.C/2)
             
-            if ll_l <= ll_f:
-                print("end by ll")
-                break
+            
  
             if gap < min_gap:
-                print("end by low gap")
+                print("end by low gap", gap, self.ub, lb)
+                break
+                
+            if ll_l <= ll_f:
+                print("end by ll")
                 break
                 
             # lb is worse than best ub
@@ -752,7 +768,7 @@ class OA_CNDP_elastic_CG:
             
             add = True
             for x_save in self.x_saved[a]:
-                if abs(x_l[a] - x_save) < a.C * 0.01:
+                if abs(x_l[a] - x_save) < a.C * 0.001:
                     add = False
                     break
             
@@ -768,7 +784,7 @@ class OA_CNDP_elastic_CG:
                 
                 add = True
                 for q_save in self.q_saved[(r,s)]:
-                    if abs(q_save - q_l[(r,s)]) < 0.01:
+                    if abs(q_save - q_l[(r,s)]) < 0.001:
                         add = False
                         break
                 
@@ -919,8 +935,8 @@ class OA_CNDP_elastic_CG:
                     self.rmp.remove_constraint(self.q_lb[(r,s)])
                     self.rmp.remove_constraint(self.q_ub[(r,s)])
 
-                    self.q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.exp(-self.mu_lb[(r,s)] / r.a[s]), ctname="q_ub"+str((r,s)))
-                    self.q_lb[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] >= self.rmp.y[(r,s)] * math.exp(-self.mu_ub[(r,s)] / r.a[s]), ctname="q_lb"+str((r,s)))
+                    self.q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] <= self.rmp.y[(r,s)] * math.sqrt(r.a[s] / self.mu_lb[(r,s)]), ctname="q_ub"+str((r,s)))
+                    self.q_lb[(r,s)] = self.rmp.add_constraint(self.rmp.q[(r,s)] >= self.rmp.y[(r,s)] * math.sqrt(r.a[s] / self.mu_ub[(r,s)]), ctname="q_lb"+str((r,s)))
 
                     #print("q-lb", r, s, self.mu_lb[(r,s)], math.exp(-self.mu_lb[(r,s)] / r.a[s]), self.rmp.y_lb[(r,s)], math.exp(-self.mu_lb[(r,s)] / r.a[s]) *self.rmp.y_lb[(r,s)])
                     #print("q-ub", r, s, self.mu_ub[(r,s)], math.exp(-self.mu_ub[(r,s)] / r.a[s]), self.rmp.y_ub[(r,s)], math.exp(-self.mu_ub[(r,s)] / r.a[s]) *self.rmp.y_ub[(r,s)])
@@ -996,7 +1012,7 @@ class OA_CNDP_elastic_CG:
         for r in self.network.origins:
             for s in r.getDests():
                 self.rmp.y_lb[(r,s)] = 1
-                self.rmp.y_ub[(r,s)] = 1200 # change this!
+                self.rmp.y_ub[(r,s)] = 10 # change this!
         
         
         self.mu_lb = self.calcTTs(self.rmp.y_lb)
@@ -1243,13 +1259,14 @@ class OA_CNDP_elastic_CG:
         '''
         
         
-        unsatisfied = target_solution.find_unsatisfied_constraints(self.rmp)
+        if output == False:
+            unsatisfied = target_solution.find_unsatisfied_constraints(self.rmp)
         
-        print("UNSATISFIED: ", len(unsatisfied))
-        for i in unsatisfied:
-            print(i)
-            print("\t", target_solution.get_value(i.lhs), target_solution.get_value(i.rhs))
-            #print("\t", solution.get_value(i.lhs), solution.get_value(i.rhs))
+            print("UNSATISFIED: ", len(unsatisfied))
+            for i in unsatisfied:
+                print(i)
+                print("\t", target_solution.get_value(i.lhs), target_solution.get_value(i.rhs))
+                #print("\t", solution.get_value(i.lhs), solution.get_value(i.rhs))
             
             
         if output == False:    

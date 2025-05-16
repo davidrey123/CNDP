@@ -22,30 +22,26 @@ class Zone(Node.Node):
             self.y[s] = ynew[(self,s)]
         
     def demandFunc(self, dest, tt):
-        #print(self.y[dest], tt, self.a[dest], math.exp(-tt/self.a[dest]), self.getDemand(dest))
-        
-        output = self.y[dest] * math.exp(-tt/self.a[dest]) 
-        #check = self.a[dest] * math.log(self.y[dest]/self.getDemand(dest)) 
-        #print("check calc 2 ", output, check, tt, self.getDemand(dest))
+        output = self.y[dest] * math.sqrt(self.a[dest] / tt)
         return output
         
     def demandFuncInv(self, dest, dem):
-        return self.a[dest] * math.log(self.y[dest]/dem) 
+        return self.a[dest] * (self.y[dest] ** 2) / (dem ** 2)
         
     def Dinv(self, dest, q, y):
-        return self.a[dest] * math.log(y / q)
+        return self.a[dest] * (y ** 2) / (q ** 2)
         
     def intDinv(self, dest, q, y):
-        if q == 0 or y == 0:
+        if q == 0:
             #print(self.id, dest.id, self.getDemand(dest), q, y)
             return 0
-        return self.a[dest] * q * (math.log(y/q) + 1)
+        return -self.a[dest] * (y ** 2) / q
         
     def intDerivDinv(self, dest, q, y):
-        return self.a[dest] * q / y
+        return - self.a[dest] * 2*y/q
     
     def demandFuncY(self, dest, dem, tt):
-        y = math.exp(tt/self.a[dest]) * dem
+        y = dem / math.sqrt(self.a[dest] / tt)
         self.calTT[dest] = tt
         
         #print("check calc ",  dem * math.exp(-tt/self.a[dest]), self.a[dest], dem, tt, tt/self.a[dest] )
