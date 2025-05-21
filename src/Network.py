@@ -492,7 +492,9 @@ class Network:
         
         #print("elastic demand? ", self.params.equilibrate_demand)
         if not self.params.warmstart:
+            printiter = self.params.PRINT_TAP_ITER
             self.resetTapas()
+            self.params.PRINT_TAP_ITER = printiter
         
         if y is not None:    
             self.setY(y)
@@ -509,6 +511,7 @@ class Network:
 
         
         #self.params.line_search_gap = pow(10, math.floor(math.log10(self.TD) - 6))
+        
         
         if self.params.PRINT_TAP_ITER:
             print("Iteration\tTSTT\tSPTT\tgap\tAEC\tBeckmann\tdem gap\ttotal dem")
@@ -804,6 +807,14 @@ class Network:
                 
         return y
 
+    def generateTarget(self, y):
+        
+        self.params.PRINT_TAP_ITER = True
+        
+        self.tapas('UE', y)
+        self.printLinkFlows()
+        self.printODDemand()
+        
     def printLinkFlows(self):
         with open("data/"+self.name+"/linkflows_0.txt", "w") as f:
             for a in self.links:

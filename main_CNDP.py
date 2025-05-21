@@ -14,8 +14,8 @@ ins = 'SF_CNDP_10_1'
 #net = 'EasternMassachusetts'
 #ins = 'EM_CNDP_30_1'
 
-net = 'HarkerFriesz'
-ins = 'HF_CNDP_1'
+#net = 'HarkerFriesz'
+#ins = 'HF_CNDP_1'
 
 #net = 'BerlinMitteCenter'
 #ins = 'BMC_CNDP_30_2'
@@ -37,9 +37,11 @@ y = network.initCalcY()
 
 #print("starting tapas")
 
+
 #network.tapas('UE', y)
-#network.printLinkFlows()
-#network.printODDemand()
+
+#network.generateTarget(y)
+
 
 #for a in network.links:
 #    print(a, a.x, a.getTravelTime(a.x, "UE"))
