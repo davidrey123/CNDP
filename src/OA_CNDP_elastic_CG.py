@@ -27,7 +27,7 @@ class OA_CNDP_elastic_CG:
         
         self.params = network.params
         
-        scenario = "0"
+        scenario = "1"
 
         for line in open("data/"+self.network.name+"/linkflows_"+scenario+".txt", "r"):
             data = line.split()
@@ -159,7 +159,7 @@ class OA_CNDP_elastic_CG:
 
         global_lb = 0
 
-        max_iter = 1
+        max_iter = 20
         iter = 0
         
         print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time")
@@ -204,8 +204,8 @@ class OA_CNDP_elastic_CG:
                 for n in bb_nodes:
                     print("\t\t", n.lb, n.ub)
 
-                    #print("\t\t\t", n.y_lb)
-                    #print("\t\t\t", n.y_ub)
+                    print("\t\t\t", n.y_lb)
+                    print("\t\t\t", n.y_ub)
                     
                     
             bb_node = bb_nodes.pop(idx)
@@ -275,6 +275,7 @@ class OA_CNDP_elastic_CG:
                     for s in r.getDests():
                         gap = self.calcVFgapPct(r, s)
 
+                        print("best rs check", (r,s), gap)
                         total_gap += gap
 
                         if gap > worst_gap:
@@ -352,7 +353,7 @@ class OA_CNDP_elastic_CG:
                             
                             diff = -(theta * r.intDinv(s, q, y_ub) + (1-theta) * r.intDinv(s, q, y_lb)) + r.intDinv(s, q, y)
                             
-                            #print("best y check", theta, diff, y)
+                            print("best y check", theta, diff, y)
                             
                             
                             if diff > largest_diff:
@@ -466,7 +467,6 @@ class OA_CNDP_elastic_CG:
             
             
             # solve RMP -> y, LB
-            #print("\t\tsolving RMP")
             
             if self.useCG:
                 status, x_l, q_l, y_l, obj_l = self.CG()
@@ -1031,16 +1031,7 @@ class OA_CNDP_elastic_CG:
         self.mu_lb = self.calcTTs(self.rmp.y_lb)
         self.mu_ub = self.calcTTs(self.rmp.y_ub)
                 
-        '''  
-        for r in self.network.origins:
-            for s in r.getDests():
-                if r.id == 1 and s.id == 2:
-                    self.rmp.y_lb[(r,s)] = 9.172430041411648
-                    self.rmp.y_ub[(r,s)] = 13.46110257294304
-                elif r.id == 2 and s.id == 1:
-                    self.rmp.y_lb[(r,s)] = 7.472245410284032
-                    self.rmp.y_ub[(r,s)] = 10.497948507811676
-        '''
+
         
         
         self.rmp.mu_a = {a:self.rmp.continuous_var(lb=0) for a in self.network.links}
@@ -1049,7 +1040,17 @@ class OA_CNDP_elastic_CG:
 
         self.rmp.x = {a:self.rmp.continuous_var(lb=0, name="x_"+str(a)) for a in self.network.links}
         
-        self.rmp.q = {(r,s): self.rmp.continuous_var(lb=0, ub=40) for r in self.network.origins for s in r.getDests()}
+        self.rmp.q = {(r,s): self.rmp.continuous_var(lb=self.q_target[(r,s)]*0.8, ub=self.q_target[(r,s)]*1.2) for r in self.network.origins for s in r.getDests()}
+        
+        '''
+        for r in self.network.origins:
+            for s in r.getDests():
+                self.rmp.y_lb[(r,s)] = max(self.rmp.y_lb[(r,s)], r.demandFuncY(s, self.rmp.q[(r,s)].lb, self.mu_lb[(r,s)]))
+                self.rmp.y_ub[(r,s)] = min(self.rmp.y_ub[(r,s)], r.demandFuncY(s, self.rmp.q[(r,s)].ub, self.mu_ub[(r,s)])) # change this!
+                
+                print((r, s), self.rmp.y_lb[(r,s)], self.rmp.y_ub[(r,s)])
+                
+        '''
         
         print("CG", self.useCG)
         
