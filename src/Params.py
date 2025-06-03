@@ -12,6 +12,8 @@ class Params:
         # if this is too small, we waste time shifting in PAS that is useless
         self.pas_cost_epsilon = 0.01
         self.line_search_gap = 1E-8
+        self.demand_gap = 1e-3
+        
         
         
     def __init__(self):
@@ -24,9 +26,10 @@ class Params:
         
         #---TAP params
         self.msa_max_iter = 500        
-        self.tapas_max_iter = 100 
-        self.min_gap = 1E-3
-        self.warmstart = True        
+        self.tapas_max_iter = 200 
+        self.min_gap = 1E-6
+        self.warmstart = False     
+        
         
         #---TAPAS params
         self.bush_gap = 1e-2
@@ -34,6 +37,7 @@ class Params:
         self.pas_cost_epsilon = 1e-2
         self.pas_flow_mu = 1e-2       
         self.line_search_gap = 1E-8
+        self.demand_gap = 1e-3
         
         self.resetPAS()
         
@@ -65,35 +69,41 @@ class Params:
         #self.initOAheuristic = 'LocalSearchY1'
         
         #---printing    
-        self.DEBUG_CHECKS = False
+        self.DEBUG_CHECKS = True
 
         self.PRINT_PAS_INFO = False
         self.PRINT_BRANCH_INFO = False
         self.PRINT_TAPAS_INFO = False
         
         self.PRINT_TAP_ITER = False
+        self.VALIDATE_LINK_FLOW = False
 
         self.printBushEquilibrate = False
         self.printReducedCosts = False        
         self.PRINT_PARAM_ADJ = False
         self.PRINT_PAS_DEBUG = False
         
-        self.PRINT_BB_INFO = False #---prints detailed BB info
-        self.PRINT_BB_BASIC = False #---prints only basic BB info        
-        self.PRINT_BB_NODE_DETAIL = False
-        self.PRINT_BB_NODE = False
-
-        self.PRINT_CG_INFO = False
+        self.PRINT_BB_INFO = True #---prints detailed BB info
+        self.PRINT_BB_BASIC = True #---prints only basic BB info       
+        
+        self.VALIDATE_BASE = False # validate solution is feasible 
+        
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now
         
+        self.OA_TOL_X = 1e-3
+        self.OA_TOL_Q = 1e-3
+        self.OA_TOL_Y = 1e-3
         
-        self.min_CNDP_gap = 1e-2
+        self.SOL_TOL_X = 1e-4
+        self.SOL_TOL_Q = 1e-4
+        self.SOL_TOL_Y = 1e-4
         
-        self.OA_TOL_X = 2e-2
-        self.OA_TOL_Y = 2e-2
-        self.VF_TOL_X = 1e-2
+        self.CG_tol = 1e-2
         
+        self.ub_eps = 1e-10
         
-        self.BACKTRACK = False
-        self.BACKTRACK_INTERVAL = 10
-        self.BACKTRACK_LEVEL_INTERVAL = 100
+        self.branching_strategy = 2
+        
+        self.BRANCH_MIDPOINT = 0
+        self.BRANCH_SOL = 1
+        self.BRANCH_MAX_GAP = 2

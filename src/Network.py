@@ -16,6 +16,8 @@ class Network:
         self.zones = []
         self.origins = []
         
+        self.name = name
+        
         self.links2 = []
         self.type = 'UE'
         self.TD = 0
@@ -35,6 +37,9 @@ class Network:
         self.readNetwork("data/"+name+"/"+ins+".txt",scal_time,scal_flow)
         self.readTrips("data/"+name+"/trips.txt",scal_time,scal_flow,inflate_trips)
         
+        
+        for r in self.origins:
+            r.setDests()
         
         self.links1 = []
         
@@ -211,15 +216,32 @@ class Network:
         return self.nodes[id - 1]
 
     # find the link with the given start and end nodes
-    def findLink(self, i, j):
+    def findLink(self, i_in, j_in):
+        
+        i = None
+        j = None
+        
+        if isinstance(i_in, Node.Node):
+            i = i_in
+        elif isinstance(i_in, int):
+            i = self.findNode(i_in)
+            
+        if isinstance(j_in, Node.Node):
+            j = j_in
+        elif isinstance(j_in, int):
+            j = self.findNode(j_in)   
+        
         if i is None or j is None:
             return None
+            
 
         for link in i.outgoing:
             if link.end == j:
                 return link
 
         return None
+    
+
     
 
     def dijkstras(self, origin, type):

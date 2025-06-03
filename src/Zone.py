@@ -10,7 +10,7 @@ class Zone(Node.Node):
         self.totaldemand = 0
         self.thruNode = True
         self.bush = None
-    
+        self.destSet = set()
 
     # adds the specified demand to an internal data structure for the demand from this node to the destination
     def addDemand(self, dest, dem):
@@ -20,6 +20,14 @@ class Zone(Node.Node):
             self.demand[dest] = dem
             
         self.totaldemand += dem
+    
+    def getDests(self):
+        return self.destSet
+        
+    def setDests(self):
+        for dest in self.demand.keys():
+            if self.demand[dest] > 0:
+                self.destSet.add(dest)
         
     def getProductions(self):
         return self.totaldemand
