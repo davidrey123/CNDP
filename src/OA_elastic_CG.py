@@ -142,12 +142,12 @@ class OA_elastic_CG:
         
         bb_nodes.append(root)
         
-        max_node_iter = 10
+        max_node_iter = 20
         min_gap = 1e-2
 
         global_lb = 0
 
-        max_iter = 10
+        max_iter = 50
         iter = 0
         
         print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time")
@@ -626,8 +626,11 @@ class OA_elastic_CG:
                 self.rmp.q[(r,s)].lb = q_lb[(r,s)]
                 self.rmp.q[(r,s)].ub = q_ub[(r,s)]
                 
-                self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)]
+                #self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)]
                 #self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)] * mu_ub[(r,s)]
+                
+                self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * self.mu_lb[(r,s)] - self.rmp.q[(r,s)].ub * self.mu_lb[(r,s)]
+                self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)] * self.mu_ub[(r,s)] + self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] - self.rmp.q[(r,s)].lb * self.mu_ub[(r,s)]
         
         
     def initRMP(self):   
@@ -712,8 +715,8 @@ class OA_elastic_CG:
         
         for r in self.network.origins:
             for s in r.destSet:
-                self.vfcut_q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)])
-                #self.vfcut_pi_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= self.rmp.q[(r,s)] * self.mu_ub[(r,s)])
+                self.vfcut_q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * self.mu_lb[(r,s)] - self.rmp.q[(r,s)].ub * self.mu_lb[(r,s)])
+                self.vfcut_pi_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= self.rmp.q[(r,s)] * self.mu_ub[(r,s)] + self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] - self.rmp.q[(r,s)].lb * self.mu_ub[(r,s)])
                 
         
         
