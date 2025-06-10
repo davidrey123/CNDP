@@ -16,15 +16,15 @@ ins = 'Braess_CNDP_1'
 net = 'HarkerFriesz'
 ins = 'HF_CNDP_1'
 
-#net = 'NguyenDupuis'
-#ins = 'ND_CNDP_1'
+net = 'NguyenDupuis'
+ins = 'ND_CNDP_1'
 
 #net = 'Anaheim'
 #ins = 'A_CNDP_30_1'
 
 b_prop = 0.5
-scal_flow = {'SiouxFalls':1e-2,'EasternMassachusetts':1e-3,'BerlinMitteCenter':1e-3,'Anaheim':1e-3,'Barcelona':1e-3, 'Braess':1, 'HarkerFriesz':1, 'NguyenDupuis':1e-3}
-inflate_trips = {'SiouxFalls':1,'EasternMassachusetts':4,'BerlinMitteCenter':2,'Anaheim':4,'Barcelona':2, 'Braess':1, 'HarkerFriesz':0.25, 'NguyenDupuis':0.25}
+scal_flow = {'SiouxFalls':1e-2,'EasternMassachusetts':1e-3,'BerlinMitteCenter':1e-3,'Anaheim':1e-3,'Barcelona':1e-3, 'Braess':1, 'HarkerFriesz':1, 'NguyenDupuis':1}
+inflate_trips = {'SiouxFalls':1,'EasternMassachusetts':4,'BerlinMitteCenter':2,'Anaheim':4,'Barcelona':2, 'Braess':1, 'HarkerFriesz':0.25, 'NguyenDupuis':1}
 print(net,ins)
 
 inflate_cost = 5
@@ -36,6 +36,7 @@ network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 network.tapas("UE", None)
 network.checkDualBeckmann()
 
+
 test = OA_elastic_CG.OA_elastic_CG(network, False)
 
-#test.solve()
+test.solve()

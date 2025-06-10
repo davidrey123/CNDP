@@ -61,37 +61,29 @@ class Network:
         
         eta = {a:0 for a in self.links}
         
-        pi = {(r,i): 0 for r in self.origins for i in self.nodes}
 
         
+          
+
         for r in self.origins:
-            if len(r.destSet) > 0:
-                self.dijkstras(r, "UE")
+            self.dijkstras(r, "UE")
             
-                for i in self.nodes:
-                    pi[(r,i)] = i.cost    
-
-                
-        
-        for r in self.origins:
-            #self.dijkstras(r, "UE")
             for s in r.destSet:
-                pi_diff = pi[(r,s)] - pi[(r, r)]
-                first += r.demand[s] * pi_diff
-                #print(r, s, r.demand[s]* pi_diff, r.demand[s]*s.cost)
+                first += r.demand[s] * s.cost
+                
+            for a in self.links:
+                if not(a.end.pred is None and a.start.pred is None):
+                    eta[a] = max(eta[a], a.end.cost - a.start.cost - a.t_ff)
+                
                 
         second = 0
         
-        for r in self.origins:
-            for a in self.links:
-                eta[a] = max(eta[a], pi[(r, a.end)] - pi[(r,a.start)] - a.t_ff)
-                
                 
         
         for a in self.links:
             g = a.getConst()
             
-            print(a, a.t_ff, a.getTravelTime(a.x, "UE"), eta[a])
+            #print(a, a.t_ff, a.getTravelTime(a.x, "UE"), eta[a])
             
             p = a.beta
             

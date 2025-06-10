@@ -97,10 +97,12 @@ class OA_elastic_CG:
         self.mu_ub = dict()
         
         self.oacut_x = dict()
+        self.oacut_eta = dict()
         self.oacut_q = dict()
         
         for a in self.network.links:
             self.oacut_x[a] = list()
+            self.oacut_eta[a] = list()
             
         for r in self.network.origins:
             for s in r.destSet:
@@ -147,7 +149,7 @@ class OA_elastic_CG:
 
         global_lb = 0
 
-        max_iter = 10
+        max_iter = 1000
         iter = 0
         
         print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time")
@@ -209,12 +211,14 @@ class OA_elastic_CG:
             if self.network.params.PRINT_BB_INFO:
                 print("--------------------")
             
-            print("solving node", bb_node.lb)
+                print("solving node", bb_node.lb)
+                
             status, local_lb, local_ub = self.solveNode(bb_node, max_node_iter, timelimit, starttime)
 
 
             if status == "infeasible":
-                print(iter, "solved node --- fathom infeasible")
+                if self.network.params.PRINT_BB_INFO:
+                    print(iter, "solved node --- fathom infeasible")
                 continue
                  
             global_lb = local_lb
@@ -297,7 +301,8 @@ class OA_elastic_CG:
                     
                     mid = (q_ub_1[worst] + q_lb_1[worst]) / 2
                         
-                    print("branching", worst, mid)
+                    if self.params.PRINT_BB_INFO:
+                        print("branching", worst, mid)
                     q_lb_2[worst] = mid
                     q_ub_1[worst] = mid
 
@@ -411,7 +416,7 @@ class OA_elastic_CG:
             if self.params.PRINT_BB_INFO:
                 print("rmp obj ", obj_l, self.calcOFV(x_l, q_l), self.calcOFV(x_f, q_l))
                 print("ll obj from rmp ", self.getRMP_ll_obj(), self.getRMP_ll_ub(), ll_l, ll_f)
-                self.network.checkDualBeckmann()
+                #self.network.checkDualBeckmann()
             
             #self.printSolution(x_l, q_l, y_l)
 
@@ -511,6 +516,8 @@ class OA_elastic_CG:
         
         total = 0
         
+        gap = 0
+        
         for r in self.network.origins:
             for s in r.destSet:
                 
@@ -529,23 +536,28 @@ class OA_elastic_CG:
         
                 total += self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value
                 #total += min(mccormick1, mccormick2)
+                
+                gap += min(mccormick1, mccormick2) - self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value
+
         
         subtract = sum(self.rmp.eta_oa[a].solution_value for a in self.network.links)
         actual = 0
         
         for a in self.network.links:
-            g = a.alpha / pow(a.C, a.beta)
+            g = a.getConst()
             
             p = a.beta
             ge = pow(g, 1/p)
             eta = self.rmp.eta[a].solution_value
-            actual += p / ((p+1) * ge) * pow(eta, (p+1)/p)
+            eta_term = p / ((p+1) * ge) * pow(eta, (p+1)/p)
+            actual += eta_term
             
-            #print(a, a.x, a.getTravelTime(a.x, "UE"), a.t_ff, eta)
+            #print(a, eta_term, self.rmp.eta_oa[a].solution_value)
         
         print("sum eta", subtract, actual)
+        print("mccormick gap", gap)
         
-        return (1+self.params.ub_eps) * total - actual
+        return (1+self.params.ub_eps) * total - subtract
         
           
     def getRMP_ll_obj(self):
@@ -582,6 +594,9 @@ class OA_elastic_CG:
     
     def addOApoint_x(self, a, x_l):
         return self.addOApoint_helper(self.oacut_x[a], x_l, self.network.params.OA_TOL_X)
+        
+    def addOApoint_eta(self, a, eta_l):
+        return self.addOApoint_helper(self.oacut_eta[a], eta_l, self.network.params.OA_TOL_X)
     
     def addOApoint_q(self, r, s, q_l):
         return self.addOApoint_helper(self.oacut_q[(r,s)], q_l, self.network.params.OA_TOL_Q)
@@ -635,7 +650,10 @@ class OA_elastic_CG:
                     self.addObjCut_q(r, s, q_l[(r,s)], idx)
 
         for a in self.network.links:
-            self.addOACut_eta(a, eta_l[a])
+            idx = self.addOApoint_eta(a, eta_l[a])
+            
+            if idx >= 0:
+                self.addOACut_eta(a, eta_l[a])
         
     def calcMuBounds(self, q):
         output = dict()
@@ -753,9 +771,11 @@ class OA_elastic_CG:
         
         # eta from dual
         
-        for a in self.network.links:
-            for r in self.network.origins:
-                self.rmp.add_constraint(self.rmp.eta[a] >= self.rmp.pi[(r,a.end)] - self.rmp.pi[(r, a.start)] - a.t_ff)
+        for r in self.network.origins:
+            self.network.dijkstras(r, "UE")
+            for a in self.network.links:
+                if not(a.end.pred is None and a.start.pred is None):
+                    self.rmp.add_constraint(self.rmp.eta[a] >= self.rmp.pi[(r,a.end)] - self.rmp.pi[(r, a.start)] - a.t_ff)
         
         
         # OA for eta
