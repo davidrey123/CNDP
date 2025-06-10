@@ -518,10 +518,10 @@ class OA_elastic_CG:
                 
                 mccormick1 = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)].solution_value + self.rmp.q[(r,s)].solution_value * self.mu_lb[(r,s)] - self.rmp.q[(r,s)].ub * self.mu_lb[(r,s)]
                 mccormick2 = self.rmp.q[(r,s)].solution_value * self.mu_ub[(r,s)] + self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)].solution_value - self.rmp.q[(r,s)].lb * self.mu_ub[(r,s)]
-                print("\t", "mccormick ub", (r,s), self.rmp.q[(r,s)].lb, self.rmp.q[(r,s)].ub, self.mu_lb[(r,s)], self.mu_ub[(r,s)])
-                print("\t\tbound 1", mccormick1, self.vfcut_q_ub[(r,s)].rhs.solution_value)
-                print("\t\tbound 2", mccormick2, self.vfcut_pi_ub[(r,s)].rhs.solution_value)
-                print("\t\tbound vs value", min(mccormick1, mccormick2), self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value)
+                #print("\t", "mccormick ub", (r,s), self.rmp.q[(r,s)].lb, self.rmp.q[(r,s)].ub, self.mu_lb[(r,s)], self.mu_ub[(r,s)])
+                #print("\t\tbound 1", mccormick1, self.vfcut_q_ub[(r,s)].rhs.solution_value)
+                #print("\t\tbound 2", mccormick2, self.vfcut_pi_ub[(r,s)].rhs.solution_value)
+                print("\tmccormick bound vs value", min(mccormick1, mccormick2), self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value)
         
                 total += self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value
                 #total += min(mccormick1, mccormick2)
@@ -642,9 +642,14 @@ class OA_elastic_CG:
         self.network.tapas("UE", None)
         
         for r in self.network.origins:
-            self.network.dijkstras(r, "Beckmann-pi")
+            self.network.dijkstras(r, "UE")
             for s in r.destSet:
-                output[(r,s)] = s.cost
+                path = self.network.trace(r, s)
+                
+                cost = 0
+                for a in path.links:
+                    cost += a.getTravelTime(a.x, "Beckmann-pi")
+                output[(r,s)] = cost
                 
         return output
         
