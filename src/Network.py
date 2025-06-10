@@ -55,6 +55,54 @@ class Network:
     def setType(self, type):
         self.type = type
         
+        
+    def checkDualBeckmann(self):
+        first = 0
+        
+        eta = {a:0 for a in self.links}
+        
+        pi = {(r,i): 0 for r in self.origins for i in self.nodes}
+
+        
+        for r in self.origins:
+            self.dijkstras(r, "UE")
+            
+            for i in self.nodes:
+                if i.pred is not None:
+                    pi[(r,i)] = i.cost    
+
+                
+        
+        for r in self.origins:
+            for s in r.destSet:
+                pi_diff = pi[(r,s)] - pi[(r, r)]
+                first += r.demand[s] * pi_diff
+                
+        second = 0
+        
+        for r in self.origins:
+            for a in self.links:
+                eta[a] = max(eta[a], pi[(r, a.end)] - pi[(r,a.start)] - a.t_ff)
+        
+        for a in self.links:
+            g = a.getConst()
+            
+            p = a.beta
+            
+            ge = pow(g, 1/p)
+            linkterm = p / (ge * (p+1)) * pow(eta[a], (p+1)/p)
+            #print("\t", linkterm)
+            second += linkterm
+        
+        dual = first - second
+        
+        primal = 0
+        
+        for a in self.links:
+            primal += a.getPrimitiveTravelTime(a.x)
+        
+        print("check dual", dual, "primal", primal)
+        
     # read file "/net.txt"
     def readNetwork(self,netFile,scal_time,scal_flow):
         

@@ -147,7 +147,7 @@ class OA_elastic_CG:
 
         global_lb = 0
 
-        max_iter = 50
+        max_iter = 10
         iter = 0
         
         print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time")
@@ -192,8 +192,8 @@ class OA_elastic_CG:
                 for n in bb_nodes:
                     print("\t\t", n.lb, n.ub)
 
-                    print("\t\t\t", n.q_lb)
-                    print("\t\t\t", n.q_ub)
+                    #print("\t\t\t", n.q_lb)
+                    #print("\t\t\t", n.q_ub)
                     
                     
             bb_node = bb_nodes.pop(idx)
@@ -411,6 +411,7 @@ class OA_elastic_CG:
             if self.params.PRINT_BB_INFO:
                 print("rmp obj ", obj_l, self.calcOFV(x_l, q_l), self.calcOFV(x_f, q_l))
                 print("ll obj from rmp ", self.getRMP_ll_obj(), self.getRMP_ll_ub(), ll_l, ll_f)
+                self.network.checkDualBeckmann()
             
             #self.printSolution(x_l, q_l, y_l)
 
@@ -502,6 +503,7 @@ class OA_elastic_CG:
                     
         return True
         
+    
         
     def getRMP_ll_ub(self):
         
@@ -521,7 +523,9 @@ class OA_elastic_CG:
                 #print("\t", "mccormick ub", (r,s), self.rmp.q[(r,s)].lb, self.rmp.q[(r,s)].ub, self.mu_lb[(r,s)], self.mu_ub[(r,s)])
                 #print("\t\tbound 1", mccormick1, self.vfcut_q_ub[(r,s)].rhs.solution_value)
                 #print("\t\tbound 2", mccormick2, self.vfcut_pi_ub[(r,s)].rhs.solution_value)
-                print("\tmccormick bound vs value", min(mccormick1, mccormick2), self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value)
+                
+                
+                #print("\tmccormick bound vs value", min(mccormick1, mccormick2), self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value)
         
                 total += self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value
                 #total += min(mccormick1, mccormick2)
@@ -609,9 +613,10 @@ class OA_elastic_CG:
         self.rmp.add_constraint(self.rmp.beta[a] >= a.getPrimitiveTravelTime(x_l) + (self.rmp.x[a] - x_l) * a.getTravelTime(x_l, self.network.type), ctname="oa_beta_"+str(idx)+"-"+str(a))
         
     def addOACut_eta(self, a, eta_p):
-        g = a.alpha / pow(a.C, a.beta)
+        g = a.getConst()
         p = a.beta
-        self.rmp.add_constraint(self.rmp.eta_oa[a] >= p / ((p+1) * g) * pow(eta_p, (p+1)/p) + pow(eta_p, (p+1)/p - 1) / g * (self.rmp.eta[a] - eta_p))
+        ge = pow(g, 1/p)
+        self.rmp.add_constraint(self.rmp.eta_oa[a] >= p / ((p+1) * ge) * pow(eta_p, (p+1)/p) + pow(eta_p, (p+1)/p - 1) / ge * (self.rmp.eta[a] - eta_p))
         
     def addCuts(self, x_l, x_f, q_l, eta_l):
         for a in self.network.links:
@@ -648,7 +653,7 @@ class OA_elastic_CG:
                 
                 cost = 0
                 for a in path.links:
-                    cost += a.getTravelTime(a.x, "Beckmann-pi")
+                    cost += a.getTravelTime(a.x, "UE")
                 output[(r,s)] = cost
                 
         return output
@@ -761,11 +766,9 @@ class OA_elastic_CG:
                 x_pct = a.C * pct / (intervals/2) # 0 to 200% of capacity
                 #print(a, pct, x_pct, a.C)
                 eta_pct = a.getTravelTime(x_pct, "UE") - a.t_ff
-                g = a.alpha / pow(a.C, a.beta)
-                p = a.beta
-                ge = pow(g, 1.0/p)
-                #ge = g
-                self.rmp.add_constraint(self.rmp.eta_oa[a] >= p / ((p+1) * ge) * pow(eta_pct, (p+1)/p) + pow(eta_pct, (p+1)/p - 1)/ge * (self.rmp.eta[a] - eta_pct))
+                
+                self.addOACut_eta(a, eta_pct)
+                
         
         
         # OFV for ll

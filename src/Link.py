@@ -35,6 +35,12 @@ class Link:
     def setFlow(self, x):
         self.x = x
     
+    def getConst(self):
+        if self.beta > 0:
+            return self.t_ff * self.alpha * pow(1/self.C, self.beta)
+        else:
+            return 1
+            
     def __repr__(self):
         return str(self)
 
@@ -50,16 +56,22 @@ class Link:
             return Params.INFTY
             
         if type == 'UE':
-            output = self.t_ff * (1 + self.alpha * pow(x / (self.C + add_cap), self.beta))
+            output = self.t_ff * (1 + self.alpha * pow(x / (self.C), self.beta))
         
+        elif type == 'ff':
+            output = self.t_ff
+            
+        elif type == 'test':
+            output = self.t_ff * (self.alpha * pow(x / (self.C), self.beta))
+            
         elif type == 'Beckmann-pi':
-            output = self.t_ff * (self.alpha * pow(x / (self.C + add_cap), self.beta))
+            output = self.t_ff * (self.alpha * pow(x / (self.C), self.beta))
         
         elif type == 'SO' or type == 'SO_OA_cuts':
-            output = self.t_ff * (1 + self.alpha * pow(x / (self.C + add_cap), self.beta))
+            output = self.t_ff * (1 + self.alpha * pow(x / (self.C), self.beta))
             
             if self.beta > 1e-4: # for handling the case of beta = 0
-                output += x * self.t_ff * self.alpha * self.beta * pow(x / (self.C + add_cap), self.beta-1) / (self.C + self.add_cap)
+                output += x * self.t_ff * self.alpha * self.beta * pow(x / (self.C), self.beta-1) / (self.C)
             
         elif type == 'RC' or type == 'RC2':
             output = self.dual
@@ -81,7 +93,7 @@ class Link:
             return Params.INFTY
             
         if self.beta > 1e-4: # for handling the case of beta = 0
-            return self.t_ff * self.alpha * self.beta * pow(x / (self.C + add_cap), self.beta-1) / (self.C + add_cap)
+            return self.t_ff * self.alpha * self.beta * pow(x / (self.C), self.beta-1) / (self.C)
         
         else:
             return 0.0
@@ -90,7 +102,7 @@ class Link:
         if x < 0 and x > -1e-4:
             x = 0.0
             
-        return -self.t_ff * self.alpha * self.beta * pow(x / (self.C + add_cap), self.beta) / (self.C + add_cap)
+        return -self.t_ff * self.alpha * self.beta * pow(x / (self.C), self.beta) / (self.C)
       
     def getPrimitiveTravelTime(self, x):  
         return self.getPrimitiveTravelTimeC(x, self.add_cap)
@@ -108,13 +120,13 @@ class Link:
                 return 0
             
         if self.beta > 1e-4: # for handling the case of beta = 0
-            return x * self.t_ff + ((self.C + add_cap) / (self.beta + 1)) * self.t_ff * self.alpha * pow(x / (self.C + add_cap), self.beta+1)
-        
+            #return x * self.t_ff + ((self.C) / (self.beta + 1)) * self.t_ff * self.alpha * pow(x / (self.C), self.beta+1)
+            return x*self.t_ff + self.t_ff * self.alpha * pow(1/self.C, self.beta) * pow(x, self.beta+1)/(self.beta+1)
         else:
             return x * self.t_ff       
             
     def intdtdy(self, x, add_cap):
-        return - self.t_ff * self.alpha * self.beta * pow(x, self.beta+1) / ( (self.beta+1) * pow(self.C + add_cap, self.beta+1))
+        return - self.t_ff * self.alpha * self.beta * pow(x, self.beta+1) / ( (self.beta+1) * pow(self.C, self.beta+1))
 
     def getCapacity(self):
         return self.C
