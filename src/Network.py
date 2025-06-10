@@ -65,32 +65,38 @@ class Network:
 
         
         for r in self.origins:
-            self.dijkstras(r, "UE")
+            if len(r.destSet) > 0:
+                self.dijkstras(r, "UE")
             
-            for i in self.nodes:
-                if i.pred is not None:
+                for i in self.nodes:
                     pi[(r,i)] = i.cost    
 
                 
         
         for r in self.origins:
+            #self.dijkstras(r, "UE")
             for s in r.destSet:
                 pi_diff = pi[(r,s)] - pi[(r, r)]
                 first += r.demand[s] * pi_diff
+                #print(r, s, r.demand[s]* pi_diff, r.demand[s]*s.cost)
                 
         second = 0
         
         for r in self.origins:
             for a in self.links:
                 eta[a] = max(eta[a], pi[(r, a.end)] - pi[(r,a.start)] - a.t_ff)
+                
+                
         
         for a in self.links:
             g = a.getConst()
             
+            print(a, a.t_ff, a.getTravelTime(a.x, "UE"), eta[a])
+            
             p = a.beta
             
             ge = pow(g, 1/p)
-            linkterm = p / (ge * (p+1)) * pow(eta[a], (p+1)/p)
+            linkterm = p / (p+1) * pow(eta[a], (p+1)/p) / ge
             #print("\t", linkterm)
             second += linkterm
         
@@ -101,6 +107,7 @@ class Network:
         for a in self.links:
             primal += a.getPrimitiveTravelTime(a.x)
         
+        print(first, second)
         print("check dual", dual, "primal", primal)
         
     # read file "/net.txt"
@@ -562,7 +569,7 @@ class Network:
         #self.params.line_search_gap = pow(10, math.floor(math.log10(self.TD) - 6))
         
         if self.params.PRINT_TAP_ITER:
-            print("Iteration\tTSTT\tSPTT\tgap\tAEC")
+            print("Iteration\tTSTT\tSPTT\tgap\tAEC\tBeckmann")
             
         last_iter_gap = 1
         
@@ -637,11 +644,12 @@ class Network:
             sptt = self.getSPTT(type)
             gap = (tstt - sptt)/tstt
             aec = (tstt - sptt)/self.TD
+            beckmann = self.getBeckmannOFV()
 
             #print(iter, sptt)
                             
             if self.params.PRINT_TAP_ITER:
-                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec))
+                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec)+"\t"+str(beckmann))
                 
                 #printLinkFlows();
 
