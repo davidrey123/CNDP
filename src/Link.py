@@ -52,6 +52,9 @@ class Link:
         if type == 'UE':
             output = self.t_ff * (1 + self.alpha * pow(x / (self.C + add_cap), self.beta))
         
+        elif type == 'Beckmann-pi':
+            output = self.t_ff * (self.alpha * pow(x / (self.C + add_cap), self.beta))
+        
         elif type == 'SO' or type == 'SO_OA_cuts':
             output = self.t_ff * (1 + self.alpha * pow(x / (self.C + add_cap), self.beta))
             

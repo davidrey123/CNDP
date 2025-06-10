@@ -301,8 +301,8 @@ class OA_elastic_CG:
                     q_lb_2[worst] = mid
                     q_ub_1[worst] = mid
 
-                    mu_ub_1 = self.calcTTs(q_ub_1)
-                    mu_lb_2 = self.calcTTs(q_lb_2)
+                    mu_ub_1 = self.calcMuBounds(q_ub_1)
+                    mu_lb_2 = self.calcMuBounds(q_lb_2)
 
                     left = BB_node.BB_node(q_lb_1, q_ub_1, local_lb, local_ub, bb_node.mu_lb, mu_ub_1)
                     right = BB_node.BB_node(q_lb_2, q_ub_2, local_lb, local_ub, mu_lb_2, bb_node.mu_ub)
@@ -379,8 +379,8 @@ class OA_elastic_CG:
             # solve RMP -> y, LB
             
             
-            if self.params.PRINT_BB_INFO:
-                print("\tsolving RMP")
+            #if self.params.PRINT_BB_INFO:
+                #print("\tsolving RMP")
             status, x_l, q_l, obj_l = self.solveRMP()
             
             
@@ -396,7 +396,7 @@ class OA_elastic_CG:
 
             
             ll_l = self.calcLLobj(x_l)
-            print("calc ll l", ll_l)
+            #print("calc ll l", ll_l)
             
 
 
@@ -404,7 +404,7 @@ class OA_elastic_CG:
             
             
             ll_f = self.calcLLobj(x_f)
-            print("calc ll f", ll_f)
+            #print("calc ll f", ll_f)
             
             
             
@@ -505,9 +505,44 @@ class OA_elastic_CG:
         
     def getRMP_ll_ub(self):
         
-        print("eta gap", self.getEtaGap())
+        #print("eta gap", self.getEtaGap())
         
-        return (1+self.params.ub_eps) * sum(self.rmp.vf_ub[(r,s)].solution_value for r in self.network.origins for s in r.destSet) - sum(self.rmp.eta_oa[a].solution_value for a in self.network.links)
+        total = 0
+        
+        for r in self.network.origins:
+            for s in r.destSet:
+                
+                
+                #self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * self.mu_lb[(r,s)] - self.rmp.q[(r,s)].ub * self.mu_lb[(r,s)]
+                #self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)] * self.mu_ub[(r,s)] + self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] - self.rmp.q[(r,s)].lb * self.mu_ub[(r,s)]
+                
+                mccormick1 = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)].solution_value + self.rmp.q[(r,s)].solution_value * self.mu_lb[(r,s)] - self.rmp.q[(r,s)].ub * self.mu_lb[(r,s)]
+                mccormick2 = self.rmp.q[(r,s)].solution_value * self.mu_ub[(r,s)] + self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)].solution_value - self.rmp.q[(r,s)].lb * self.mu_ub[(r,s)]
+                print("\t", "mccormick ub", (r,s), self.rmp.q[(r,s)].lb, self.rmp.q[(r,s)].ub, self.mu_lb[(r,s)], self.mu_ub[(r,s)])
+                print("\t\tbound 1", mccormick1, self.vfcut_q_ub[(r,s)].rhs.solution_value)
+                print("\t\tbound 2", mccormick2, self.vfcut_pi_ub[(r,s)].rhs.solution_value)
+                print("\t\tbound vs value", min(mccormick1, mccormick2), self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value)
+        
+                total += self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value
+                #total += min(mccormick1, mccormick2)
+        
+        subtract = sum(self.rmp.eta_oa[a].solution_value for a in self.network.links)
+        actual = 0
+        
+        for a in self.network.links:
+            g = a.alpha / pow(a.C, a.beta)
+            
+            p = a.beta
+            ge = pow(g, 1/p)
+            eta = self.rmp.eta[a].solution_value
+            actual += p / ((p+1) * ge) * pow(eta, (p+1)/p)
+            
+            #print(a, a.x, a.getTravelTime(a.x, "UE"), a.t_ff, eta)
+        
+        print("sum eta", subtract, actual)
+        
+        return (1+self.params.ub_eps) * total - actual
+        
           
     def getRMP_ll_obj(self):
         return sum(self.rmp.beta[a].solution_value for a in self.network.links)
@@ -597,6 +632,22 @@ class OA_elastic_CG:
         for a in self.network.links:
             self.addOACut_eta(a, eta_l[a])
         
+    def calcMuBounds(self, q):
+        output = dict()
+        
+        for r in self.network.origins:
+            for s in r.getDests():
+                r.demand[s] = q[(r,s)]
+            
+        self.network.tapas("UE", None)
+        
+        for r in self.network.origins:
+            self.network.dijkstras(r, "Beckmann-pi")
+            for s in r.destSet:
+                output[(r,s)] = s.cost
+                
+        return output
+        
     def calcTTs(self, q):
         output = dict()
         
@@ -626,11 +677,12 @@ class OA_elastic_CG:
                 self.rmp.q[(r,s)].lb = q_lb[(r,s)]
                 self.rmp.q[(r,s)].ub = q_ub[(r,s)]
                 
-                #self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)]
-                #self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)] * mu_ub[(r,s)]
-                
-                self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * self.mu_lb[(r,s)] - self.rmp.q[(r,s)].ub * self.mu_lb[(r,s)]
-                self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)] * self.mu_ub[(r,s)] + self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] - self.rmp.q[(r,s)].lb * self.mu_ub[(r,s)]
+                mu_ub = self.mu_ub[(r,s)]
+                mu_lb = self.mu_lb[(r,s)]
+
+                #print("\t", "mccormick", (r,s), self.rmp.q[(r,s)].lb, self.rmp.q[(r,s)].ub, self.mu_lb[(r,s)], self.mu_ub[(r,s)])
+                self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * mu_lb - self.rmp.q[(r,s)].ub * mu_lb
+                self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * mu_ub - self.rmp.q[(r,s)].lb * mu_ub
         
         
     def initRMP(self):   
@@ -658,8 +710,8 @@ class OA_elastic_CG:
 
         
         
-        self.mu_lb = self.calcTTs(self.q_lb)
-        self.mu_ub = self.calcTTs(self.q_ub)
+        self.mu_lb = self.calcMuBounds(self.q_lb)
+        self.mu_ub = self.calcMuBounds(self.q_ub)
                 
 
         
@@ -706,7 +758,9 @@ class OA_elastic_CG:
                 eta_pct = a.getTravelTime(x_pct, "UE") - a.t_ff
                 g = a.alpha / pow(a.C, a.beta)
                 p = a.beta
-                self.rmp.add_constraint(self.rmp.eta_oa[a] >= p / ((p+1) * g) * pow(eta_pct, (p+1)/p) + pow(eta_pct, (p+1)/p - 1)/g * (self.rmp.eta[a] - eta_pct))
+                ge = pow(g, 1.0/p)
+                #ge = g
+                self.rmp.add_constraint(self.rmp.eta_oa[a] >= p / ((p+1) * ge) * pow(eta_pct, (p+1)/p) + pow(eta_pct, (p+1)/p - 1)/ge * (self.rmp.eta[a] - eta_pct))
         
         
         # OFV for ll
@@ -715,10 +769,9 @@ class OA_elastic_CG:
         
         for r in self.network.origins:
             for s in r.destSet:
-                self.vfcut_q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * self.mu_lb[(r,s)] - self.rmp.q[(r,s)].ub * self.mu_lb[(r,s)])
-                self.vfcut_pi_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= self.rmp.q[(r,s)] * self.mu_ub[(r,s)] + self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] - self.rmp.q[(r,s)].lb * self.mu_ub[(r,s)])
-                
-        
+                #bounds are set in updateqbounds()
+                self.vfcut_q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= 1e15)
+                self.vfcut_pi_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= 1e15)
         
         
         # avoid the x=0 solution

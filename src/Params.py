@@ -100,7 +100,7 @@ class Params:
         
         self.CG_tol = 1e-2
         
-        self.ub_eps = 1e-10
+        self.ub_eps = 1e-1
         
         self.branching_strategy = 2
         
