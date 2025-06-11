@@ -30,7 +30,7 @@ class OA_elastic_CG:
         
         self.params = network.params
         
-        scenario = "1"
+        scenario = "2"
 
         for line in open("data/"+self.network.name+"/linkflows_"+scenario+".txt", "r"):
             data = line.split()
@@ -53,6 +53,8 @@ class OA_elastic_CG:
         self.x_base = dict()
         self.q_base = dict()
         self.xc_base = dict()
+        
+        scenario = "0"
         
         if scenario != "0":
             scenario = scenario + "sol"
@@ -149,7 +151,7 @@ class OA_elastic_CG:
 
         global_lb = 0
 
-        max_iter = 1000
+        max_iter = 100
         iter = 0
         
         print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time")
@@ -329,7 +331,7 @@ class OA_elastic_CG:
                         #print("\t\t", right.q_lb)
                         #print("\t\t", right.q_ub)
 
-                #max_node_iter = 1
+                max_node_iter = 1
 
         if self.network.params.PRINT_BB_INFO:
             print("best obj", self.calcOFV(self.best_x, self.best_q))
@@ -415,7 +417,7 @@ class OA_elastic_CG:
             
             if self.params.PRINT_BB_INFO:
                 print("rmp obj ", obj_l, self.calcOFV(x_l, q_l), self.calcOFV(x_f, q_l))
-                print("ll obj from rmp ", self.getRMP_ll_obj(), self.getRMP_ll_ub(), ll_l, ll_f)
+                print("ll obj from rmp ", self.getRMP_ll_obj(), "rmp ll ub", self.getRMP_ll_ub(), "actual rmp ll", ll_l, "TAP", ll_f)
                 #self.network.checkDualBeckmann()
             
             #self.printSolution(x_l, q_l, y_l)
@@ -534,8 +536,8 @@ class OA_elastic_CG:
                 
                 #print("\tmccormick bound vs value", min(mccormick1, mccormick2), self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value)
         
-                total += self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value
-                #total += min(mccormick1, mccormick2)
+                #total += self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value
+                total += min(mccormick1, mccormick2)
                 
                 gap += min(mccormick1, mccormick2) - self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value
 
@@ -553,6 +555,7 @@ class OA_elastic_CG:
             actual += eta_term
             
             #print(a, eta_term, self.rmp.eta_oa[a].solution_value)
+        
         
         print("sum eta", subtract, actual)
         print("mccormick gap", gap)
@@ -579,8 +582,8 @@ class OA_elastic_CG:
 
     
     def calcOFV(self, x, q):
-        output = sum((x[a] - self.x_target[a]) ** 2 for a in self.network.links) 
-        output += sum( (q[(r,s)] - self.q_target[(r,s)]) ** 2 for r in self.network.origins for s in r.getDests())
+        output = sum((x[a] - self.x_target[a]) ** 2 for a in self.network.links if a in self.x_target) 
+        output += sum( (q[(r,s)] - self.q_target[(r,s)]) ** 2 for r in self.network.origins for s in r.getDests() if (r,s) in self.q_target)
 
 
         return output
@@ -639,15 +642,18 @@ class OA_elastic_CG:
            
             idx = self.addOApoint_x(a, x_l[a])
             if idx >= 0:
-                self.addObjCut_x(a, x_l[a], idx)
                 self.addOACut_x(a, x_l[a], idx)
+                
+                
+                if a in self.x_target:
+                    self.addObjCut_x(a, x_l[a], idx)
         
         for r in self.network.origins:
             for s in r.getDests():
-
-                idx = self.addOApoint_q(r, s, q_l[(r,s)])
-                if idx >= 0:
-                    self.addObjCut_q(r, s, q_l[(r,s)], idx)
+                if (r,s) in self.q_target:
+                    idx = self.addOApoint_q(r, s, q_l[(r,s)])
+                    if idx >= 0:
+                        self.addObjCut_q(r, s, q_l[(r,s)], idx)
 
         for a in self.network.links:
             idx = self.addOApoint_eta(a, eta_l[a])
@@ -731,8 +737,9 @@ class OA_elastic_CG:
 
         for r in self.network.origins:
             for s in r.destSet:
-                self.q_lb[(r,s)] = self.q_target[(r,s)]*0.8
-                self.q_ub[(r,s)] = self.q_target[(r,s)]*1.2
+                if (r,s) in self.q_target:
+                    self.q_lb[(r,s)] = self.q_target[(r,s)]*0.8
+                    self.q_ub[(r,s)] = self.q_target[(r,s)]*1.2
         
         self.rmp.parameters.read.scale = -1
 
@@ -804,12 +811,12 @@ class OA_elastic_CG:
         
         # avoid the x=0 solution
         for a in self.network.links:
-            if self.addOApoint_x(a, 0) >= 0:
+            if a in self.x_target and self.addOApoint_x(a, 0) >= 0:
                 self.addObjCut_x(a, 0, 0)
         
         for r in self.network.origins:
             for s in r.getDests():
-                if self.addOApoint_q(r, s, 0) >= 0:
+                if (r,s) in self.q_target and self.addOApoint_q(r, s, 0) >= 0:
                     self.addObjCut_q(r, s, 0, 0)
         
         

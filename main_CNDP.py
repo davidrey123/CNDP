@@ -13,8 +13,8 @@ ins = 'Braess_CNDP_1'
 #net = 'EasternMassachusetts'
 #ins = 'EM_CNDP_30_1'
 
-net = 'HarkerFriesz'
-ins = 'HF_CNDP_1'
+#net = 'HarkerFriesz'
+#ins = 'HF_CNDP_1'
 
 net = 'NguyenDupuis'
 ins = 'ND_CNDP_1'
@@ -33,8 +33,8 @@ print(scale_dem * inflate_trips[net], inflate_cost, scal_flow[net])
 
 network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 
-network.tapas("UE", None)
-network.checkDualBeckmann()
+#network.tapas("UE", None)
+#network.checkDualBeckmann()
 
 
 test = OA_elastic_CG.OA_elastic_CG(network, False)
