@@ -6,6 +6,7 @@ from src import Bush
 from src import Params
 from src import PASList
 from src import Heap
+import random
 
 class Network:
 
@@ -778,3 +779,50 @@ class Network:
         
         for p in removed:
             self.removeAPAS(p)
+            
+    def generateScenarios(self, num_scenarios):
+        self.printLinkFlows("0", len(self.links), 0)
+        self.printODDemand("0")
+        
+        for i in range(1, num_scenarios+1):
+            self.generateScenario(i)
+            
+    def generateScenario(self, scenario, error):
+        self.printLinkFlows(scenario, round(len(self.links)/3), error)
+        self.printODDemand(scenario)
+        
+    def printLinkFlows(self, scenario, numlinks, error):
+        #print(numlinks)
+        link_list = []
+        
+        for a in self.links:
+            link_list.append(a)
+            
+        random.shuffle(link_list)
+        
+        with open("data/"+self.name+"/linkflows_"+str(scenario)+".txt", "w") as f:
+            for idx in range(0, numlinks):
+                a = link_list[idx]
+                
+                x = a.x
+                
+                r = random.random()
+                
+                x_err = x+ r * x * error - x * (error/2)
+                print(a, x, x_err, r)
+                f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(x_err)+"\n")
+        
+        '''     
+        with open("data/"+self.name+"/linkflowsC_"+str(scenario)+".txt", "w") as f:
+            for a in self.links:
+                for r in self.origins:
+                    f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(r.id)+"\t"+str(r.bush.getFlow(a))+"\n")
+        '''
+
+    def printODDemand(self, scenario):
+        with open("data/"+self.name+"/demand_"+str(scenario)+".txt", "w") as f:
+            for r in self.origins:
+                for s in r.getDests():
+                    f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(r.demand[s])+"\n")
+        
+

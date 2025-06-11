@@ -10,10 +10,12 @@ import math
 
 class OA_elastic_CG:
     
-    def __init__(self, network, useCG):
+    def __init__(self, network, useCG, obj_weight):
         self.network = network
         
         self.useCG = useCG
+        
+        self.obj_weight = obj_weight
         
         for a in self.network.links2:
             a.y = 0
@@ -239,6 +241,8 @@ class OA_elastic_CG:
             elapsed_time = time.time() - starttime
 
             print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}")
+            
+            
 
             if self.network.params.PRINT_BB_INFO:
                 print("\tsolved node", bb_node.lb, local_lb, local_ub)
@@ -337,8 +341,8 @@ class OA_elastic_CG:
             print("best obj", self.calcOFV(self.best_x, self.best_q))
         
   
-        
     def solveNode(self, bbnode, max_iter, timelimit, starttime):
+
        
         lb = bbnode.lb
         
@@ -409,6 +413,11 @@ class OA_elastic_CG:
 
             x_f, obj_f = self.TAP(q_l)
             
+            '''
+            for r in self.network.origins:
+                for s in r.destSet:
+                    print(r, s, self.q_target[(r,s)], q_l[(r,s)])
+            '''
             
             ll_f = self.calcLLobj(x_f)
             #print("calc ll f", ll_f)
@@ -416,7 +425,7 @@ class OA_elastic_CG:
             
             
             if self.params.PRINT_BB_INFO:
-                print("rmp obj ", obj_l, self.calcOFV(x_l, q_l), self.calcOFV(x_f, q_l))
+                print("rmp obj ", obj_l, self.calcOFV(x_l, q_l), self.calcOFV(x_f, q_l), "from x", self.calcOFV_x(x_f), "from q", self.calcOFV_q(q_l))
                 print("ll obj from rmp ", self.getRMP_ll_obj(), "rmp ll ub", self.getRMP_ll_ub(), "actual rmp ll", ll_l, "TAP", ll_f)
                 #self.network.checkDualBeckmann()
             
@@ -455,6 +464,7 @@ class OA_elastic_CG:
                     print("\t\tl", self.calcLLobj(x_l), self.calcLLobj(x_l))
                     #print("\t\tf", q_f)
                     print("\t\tdem gap", self.calcGap(x_l, q_l))
+                    
                 
 
 
@@ -497,6 +507,8 @@ class OA_elastic_CG:
             
         
         return "solved", lb, node_ub
+        
+        
         
     def isSameSolution(self, last_x, x, last_q, q):
         for a in self.network.links:
@@ -580,13 +592,16 @@ class OA_elastic_CG:
         return beck_diff
         
 
+    def calcOFV_x(self, x):
+        return (1-self.obj_weight) * sum((x[a] - self.x_target[a]) ** 2 for a in self.network.links if a in self.x_target) 
+        
+    def calcOFV_q(self, q):
+        return self.obj_weight * sum( (q[(r,s)] - self.q_target[(r,s)]) ** 2 for r in self.network.origins for s in r.getDests() if (r,s) in self.q_target)
+
+
     
     def calcOFV(self, x, q):
-        output = sum((x[a] - self.x_target[a]) ** 2 for a in self.network.links if a in self.x_target) 
-        output += sum( (q[(r,s)] - self.q_target[(r,s)]) ** 2 for r in self.network.origins for s in r.getDests() if (r,s) in self.q_target)
-
-
-        return output
+        return self.calcOFV_x(x) + self.calcOFV_q(q)
 
     def calcLLobj(self, xhat):
         total = 0
@@ -843,7 +858,10 @@ class OA_elastic_CG:
                     self.rmp.add_constraint(sum(self.rmp.xc[(a,r)] for a in i.incoming) - sum(self.rmp.xc[(a,r)] for a in i.outgoing) == dem, ctname="cons_"+str(i)+"_"+str(r))
 
         
-        self.rmp.objfunc = sum(self.rmp.mu_a[a] for a in self.network.links) + sum(self.rmp.mu_w[(r,s)] for r in self.network.origins for s in r.getDests())
+        
+        self.rmp.objfunc_x = (1-self.obj_weight) * sum(self.rmp.mu_a[a] for a in self.network.links)
+        self.rmp.objfunc_q = self.obj_weight * sum(self.rmp.mu_w[(r,s)] for r in self.network.origins for s in r.getDests())
+        self.rmp.objfunc = self.rmp.objfunc_x + self.rmp.objfunc_q
         self.rmp.minimize(self.rmp.objfunc)
         
     def solveRMP(self):

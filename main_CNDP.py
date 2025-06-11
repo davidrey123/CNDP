@@ -7,8 +7,8 @@ from decimal import Decimal
 net = 'Braess'
 ins = 'Braess_CNDP_1'
 
-#net = 'SiouxFalls'
-#ins = 'SF_CNDP_10_1'
+net = 'SiouxFalls'
+ins = 'SF_CNDP_10_1'
 
 #net = 'EasternMassachusetts'
 #ins = 'EM_CNDP_30_1'
@@ -35,8 +35,8 @@ network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 
 #network.tapas("UE", None)
 #network.checkDualBeckmann()
+#network.generateScenario(2, 0.01)
 
-
-test = OA_elastic_CG.OA_elastic_CG(network, False)
+test = OA_elastic_CG.OA_elastic_CG(network, False, 0.5)
 
 test.solve()
