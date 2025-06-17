@@ -37,10 +37,9 @@ y = network.initCalcY()
 
 #print("starting tapas")
 
-
 #network.tapas('UE', y)
 
-#etwork.generateTarget(y)
+#network.generateTarget(y)
 
 
 #for a in network.links:

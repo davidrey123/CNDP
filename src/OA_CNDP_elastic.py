@@ -24,7 +24,7 @@ class OA_CNDP_elastic:
         self.q_target = dict()
         self.y_target = dict()
         
-        scenario = "1"
+        scenario = "2"
 
         for line in open("data/"+self.network.name+"/linkflows_"+scenario+".txt", "r"):
             data = line.split()
