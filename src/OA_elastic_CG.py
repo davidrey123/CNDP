@@ -294,6 +294,8 @@ class OA_elastic_CG:
                     
                 branch = True
 
+                if status == "end-ll":
+                    branch = False
                
 
                 if branch:
@@ -454,10 +456,13 @@ class OA_elastic_CG:
                 gap = 0
             else:
                 gap = 1
+                
+            ll_gap = (ll_l - ll_f) / ll_f
+            
             
             #print(obj_f)
             if self.network.params.PRINT_BB_BASIC:
-                print("\tBB node", iteration, lb, obj_f, self.ub, f"{gap:.2f}", f"{elapsed:.2f}", f"{ll_l:.2f}", f"{ll_f:.2f}")
+                print("\tBB node", iteration, lb, obj_f, self.ub, f"{gap:.2f}", f"{elapsed:.2f}", f"{ll_l:.2f}", f"{ll_f:.2f}", ll_gap)
                 
                 if self.params.PRINT_BB_INFO:
                     #print("\t", q_l)
@@ -467,8 +472,11 @@ class OA_elastic_CG:
                     
                 
 
-
             
+            if ll_gap < self.params.ll_tol:
+                if self.params.PRINT_BB_INFO:
+                    print("end by low ll gap", gap, self.ub, lb)
+                return "end-ll", lb, node_ub
  
             if gap < min_gap:
                 if self.params.PRINT_BB_INFO:
@@ -485,6 +493,8 @@ class OA_elastic_CG:
                 if self.params.PRINT_BB_INFO:
                     print("end b/c lb > ub")
                 break
+                
+            
                 
             # no improvement due to weak vf cut
             #if gap == last_gap:

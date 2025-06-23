@@ -780,15 +780,15 @@ class Network:
         for p in removed:
             self.removeAPAS(p)
             
-    def generateScenarios(self, num_scenarios):
+    def generateScenarios(self, start, num_scenarios, pct_links, error):
         self.printLinkFlows("0", len(self.links), 0)
         self.printODDemand("0")
         
-        for i in range(1, num_scenarios+1):
-            self.generateScenario(i)
+        for i in range(start, num_scenarios+1+start):
+            self.generateScenario(i, pct_links, error)
             
-    def generateScenario(self, scenario, error):
-        self.printLinkFlows(scenario, round(len(self.links)/3), error)
+    def generateScenario(self, scenario, pct_links, error):
+        self.printLinkFlows(scenario, round(len(self.links)* pct_links), error)
         self.printODDemand(scenario)
         
     def printLinkFlows(self, scenario, numlinks, error):

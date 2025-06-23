@@ -16,8 +16,8 @@ ins = 'SF_CNDP_10_1'
 #net = 'HarkerFriesz'
 #ins = 'HF_CNDP_1'
 
-net = 'NguyenDupuis'
-ins = 'ND_CNDP_1'
+#net = 'NguyenDupuis'
+#ins = 'ND_CNDP_1'
 
 #net = 'Anaheim'
 #ins = 'A_CNDP_30_1'
@@ -35,7 +35,7 @@ network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 
 #network.tapas("UE", None)
 #network.checkDualBeckmann()
-#network.generateScenario(2, 0.01)
+#network.generateScenarios(1, 5, 1.0/3, 0.1)
 
 test = OA_elastic_CG.OA_elastic_CG(network, False, 0.5)
 
