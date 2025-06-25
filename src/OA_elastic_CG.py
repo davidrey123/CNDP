@@ -155,7 +155,7 @@ class OA_elastic_CG:
         max_iter = 100
         iter = 0
         
-        print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time")
+        print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time", "ll gap")
         
         while len(bb_nodes) > 0 and iter < max_iter:
             
@@ -239,7 +239,7 @@ class OA_elastic_CG:
 
             elapsed_time = time.time() - starttime
 
-            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}")
+            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}", ll_gap)
             
             
 
