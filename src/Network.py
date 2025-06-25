@@ -21,7 +21,7 @@ class Network:
         self.type = 'UE'
         self.TD = 0
         self.TC = 0 # total cost
-        self.params = Params.Params(True)
+        self.params = Params.Params(False)
         
         self.ins = ins    
         
@@ -489,6 +489,8 @@ class Network:
         
     
     def tapas(self, type, y):
+        
+        
         
         #print("elastic demand? ", self.params.equilibrate_demand)
         if not self.params.warmstart:

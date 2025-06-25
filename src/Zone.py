@@ -41,7 +41,7 @@ class Zone(Node.Node):
         return - self.a[dest] * 2*y/q
     
     def demandFuncY(self, dest, dem, tt):
-        y = dem / math.sqrt(self.a[dest] / tt)
+        y = dem * math.sqrt(tt / self.a[dest])
         self.calTT[dest] = tt
         
         #print("check calc ",  dem * math.exp(-tt/self.a[dest]), self.a[dest], dem, tt, tt/self.a[dest] )

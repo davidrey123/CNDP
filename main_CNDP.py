@@ -56,6 +56,10 @@ def main():
 
 	network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 	y = network.initCalcY()
+	
+	for r in network.origins:
+		for s in r.destSet:
+			print((r,s), y[(r,s)])
 
 	#print("starting tapas")
 

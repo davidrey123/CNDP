@@ -170,7 +170,7 @@ class OA_elastic_CG:
 
         global_lb = 0
 
-        max_iter = 500
+        max_iter = 10000
         iter = 0
         
         print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time", "ll gap")
@@ -303,6 +303,8 @@ class OA_elastic_CG:
                 # y cannot be at ub or lb, or the gap would be 0...
                 # branch on y directly will prevent further gap there
 
+                
+                
                 # do not branch unless gap exists
                 branch = True
                 
@@ -515,6 +517,8 @@ class OA_elastic_CG:
             
             y_test = self.network.calcY(x_l, q_l)
             
+            
+            
             for r in self.network.origins:
                 for s in r.destSet:
                     if y_test[(r,s)] > self.rmp.y[(r,s)].ub:
@@ -556,8 +560,10 @@ class OA_elastic_CG:
             
             # solve TAP -> x, UB
             #print("\t\tTAP")
-            x_f, q_f, obj_f = self.TAP(y_test)
+            x_f, q_f, obj_f = self.TAP(q_l, y_test)
             
+            
+            #self.printSolution(x_f, q_l, q_f)
             
             ll_f = self.calcLLobj(x_f, q_f, y_l)
             
@@ -587,7 +593,7 @@ class OA_elastic_CG:
                 
             ll_gap = (ll_l - ll_f) / ll_f
             
-            #self.printSolution(x_l, q_l, y_l)
+  
 
 
             self.addCuts(x_l, x_f, q_l, q_f, y_l)
@@ -603,6 +609,8 @@ class OA_elastic_CG:
                 self.best_x = x_f
                 self.best_q = q_f
                 self.best_y = y_test
+                
+                #self.printSolution(self.best_x, self.best_q, self.best_y);
                 
                 '''
                 print("\n\n*****", obj_f)
@@ -753,20 +761,16 @@ class OA_elastic_CG:
         return True
                     
     
+    def calcOFV_x(self, x):
+        return (1-self.obj_weight) * sum((x[a] - self.x_target[a]) ** 2 for a in self.network.links if a in self.x_target) 
+        
+    def calcOFV_q(self, q):
+        return self.obj_weight * sum( (q[(r,s)] - self.q_target[(r,s)]) ** 2 for r in self.network.origins for s in r.getDests() if (r,s) in self.q_target)
+
+
+    
     def calcOFV(self, x, q):
-        #output = sum((x[a] - self.x_target[a]) ** 2 for a in self.network.links if a in self.x_target) 
-        output = 0
-        
-        for a in self.network.links:
-            if a in self.x_target:
-                output += (x[a] - self.x_target[a]) ** 2
-        output += sum( (q[(r,s)] - self.q_target[(r,s)]) ** 2 for r in self.network.origins for s in r.getDests())
-        
-        #if output == 0:
-        #    self.printSolution(x, q)
-
-
-        return output
+        return self.calcOFV_x(x) + self.calcOFV_q(q)
 
     def calcLLobj(self, xhat, qhat, yhat):
         total = 0
@@ -1086,7 +1090,7 @@ class OA_elastic_CG:
 
         for r in self.network.origins:
             for s in r.getDests():
-                self.rmp.y_lb[(r,s)] = 0.1
+                self.rmp.y_lb[(r,s)] = 100
                 self.rmp.y_ub[(r,s)] = 1000 # change this!
         
         
@@ -1255,30 +1259,43 @@ class OA_elastic_CG:
         
         return "solved", x_l, q_l, y_l, obj_l
         
-    def TAP(self, y):
+    def TAP(self, q, y):
     
         for r in self.network.origins:
             for s in r.getDests():
                 r.y[s] = y[(r,s)]
+                r.demand[s] = q[(r,s)]
                 
                 
-            
+        self.network.params.equilibrate_demand = False    
         self.network.tapas("UE", None)
         xhat = {a:a.x for a in self.network.links}
         qhat = {(r,s): r.bush.demand[s] for r in self.network.origins for s in r.getDests()}
         obj_f = self.calcOFV(xhat, qhat)
         
+
         return xhat, qhat, obj_f
         
     def printSolution(self, x, q, y):
         print("link flows")
+        total = 0
+        
         for a in self.network.links:
-            print("\t", a, x[a], self.x_target[a], a.getTravelTime(x[a], "UE"))
+            if a in self.x_target:
+                val = (1-self.obj_weight) * (x[a] - self.x_target[a]) **2
+                print("\t", a, round(x[a], 2), round(self.x_target[a], 2), round(val, 2))
+                total += val
+            else:
+                print("\t", a, round(x[a], 2))
            
         print("demand")
         for r in self.network.origins:
             for s in r.getDests():
-                print("\t", r, s, q[(r,s)], self.q_target[(r,s)], y[(r,s)])
+                val = self.obj_weight * (q[(r,s)] - self.q_target[(r,s)]) **2
+                print("\t", r, s, round(q[(r,s)], 2), round(self.q_target[(r,s)], 2), round(y[(r,s)], 2), round(val, 2))
+                total += val
+        
+        print(total)
  
     def checkTargetValidity(self):
 
