@@ -183,6 +183,8 @@ class Network:
             
         file.close()
 
+    def initCalcY(self):
+        return None
 
     def readTrips(self,tripsFile,scal_time,scal_flow,inflate_trips):
         

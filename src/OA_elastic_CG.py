@@ -10,7 +10,7 @@ import math
 
 class OA_elastic_CG:
     
-    def __init__(self, network, useCG, obj_weight):
+    def __init__(self, network, useCG, obj_weight, scenario):
         self.network = network
         
         self.useCG = useCG
@@ -32,7 +32,6 @@ class OA_elastic_CG:
         
         self.params = network.params
         
-        scenario = "2"
 
         for line in open("data/"+self.network.name+"/linkflows_"+scenario+".txt", "r"):
             data = line.split()
