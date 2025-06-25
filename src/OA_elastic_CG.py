@@ -173,7 +173,7 @@ class OA_elastic_CG:
         max_iter = 500
         iter = 0
         
-        print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time")
+        print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time", "ll gap")
         
         while len(bb_nodes) > 0 and iter < max_iter:
             
@@ -232,7 +232,8 @@ class OA_elastic_CG:
             if self.network.params.PRINT_BB_INFO:
                 print("--------------------")
             
-            print("solving node")
+                print("solving node")
+                
             status, local_lb, local_ub, local_y, ll_gap = self.solveNode(bb_node, max_node_iter, timelimit, starttime)
 
 
@@ -306,7 +307,8 @@ class OA_elastic_CG:
                 branch = True
                 
                 if ll_gap < self.params.min_ll_gap:
-                    print("no branch", ll_gap)
+                    if self.params.PRINT_BB_INFO:
+                        print("no branch", ll_gap)
                     branch = False
 
                 #I'm not sure this ever occurs
@@ -379,8 +381,9 @@ class OA_elastic_CG:
                     else:
                         print("UNKNOWN branch strategy")
                         exit()
-                        
-                    print("branching", worst, mid)
+                    
+                    if self.params.PRINT_BB_INFO:  
+                        print("branching", worst, mid)
                     y_lb_2[worst] = mid
                     y_ub_1[worst] = mid
 
@@ -536,7 +539,9 @@ class OA_elastic_CG:
 
             
             ll_l = self.calcLLobj(x_l, q_l, y_l)
-            print("calc ll l", ll_l)
+            
+            if self.params.PRINT_BB_INFO:
+                print("calc ll l", ll_l)
             
             for a in self.network.links:
                 a.x = x_l[a]
@@ -555,7 +560,9 @@ class OA_elastic_CG:
             
             
             ll_f = self.calcLLobj(x_f, q_f, y_l)
-            print("calc ll f", ll_f)
+            
+            if self.params.PRINT_BB_INFO:
+                print("calc ll f", ll_f)
             
             '''
             for r in self.network.origins:
@@ -776,7 +783,8 @@ class OA_elastic_CG:
         ''' 
         total = part1 + part2
         
-        print("check beckmann ", part1 , part2, total)
+        if self.params.PRINT_BB_INFO:
+            print("check beckmann ", part1 , part2, total)
         
         return total
         
@@ -1106,7 +1114,8 @@ class OA_elastic_CG:
                 
         '''
         
-        print("CG", self.useCG)
+        if self.params.PRINT_BB_INFO:
+            print("CG", self.useCG)
         
         if self.useCG:
             
@@ -1222,7 +1231,8 @@ class OA_elastic_CG:
         self.rmp.solve(log_output=False)
         t_solve = time.time() - t_solve
         
-        print(self.rmp.solve_details.status)
+        if self.params.PRINT_BB_INFO:
+            print(self.rmp.solve_details.status)
         
         if self.rmp.solve_details.status == 'infeasible' or self.rmp.solve_details.status == 'integer infeasible':
             return 'infeasible', dict(), dict(), dict(), 1e15
