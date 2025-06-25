@@ -127,7 +127,7 @@ class OA_elastic_CG:
         
     
     def solve(self):
-        timelimit = 3600
+        timelimit = 14400
         starttime = time.time()
         
         
@@ -152,7 +152,7 @@ class OA_elastic_CG:
 
         global_lb = 0
 
-        max_iter = 100
+        max_iter = 10000
         iter = 0
         
         print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time", "ll gap")
@@ -340,6 +340,8 @@ class OA_elastic_CG:
 
         if self.network.params.PRINT_BB_INFO:
             print("best obj", self.calcOFV(self.best_x, self.best_q))
+            
+        self.printSolution(self.best_x, self.best_q);
         
   
     def solveNode(self, bbnode, max_iter, timelimit, starttime):
@@ -937,15 +939,25 @@ class OA_elastic_CG:
         
     def printSolution(self, x, q):
         print("link flows")
+        total = 0
+        
         for a in self.network.links:
-            print("\t", a, x[a], self.x_target[a], a.getTravelTime(x[a], "UE"))
+            if a in self.x_target:
+                val = (1-self.obj_weight) * (x[a] - self.x_target[a]) **2
+                print("\t", a, round(x[a], 2), round(self.x_target[a], 2), round(val, 2))
+                total += val
+            else:
+                print("\t", a, round(x[a], 2))
            
         print("demand")
         for r in self.network.origins:
             for s in r.getDests():
-                print("\t", r, s, q[(r,s)], self.q_target[(r,s)])
- 
-    
+                val = self.obj_weight * (q[(r,s)] - self.q_target[(r,s)]) **2
+                print("\t", r, s, round(q[(r,s)], 2), round(self.q_target[(r,s)], 2), round(val, 2))
+                total += val
+        
+        print(total)
+        
         
     def getPaths(self):
         all_paths = []
