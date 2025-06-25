@@ -216,7 +216,7 @@ class OA_elastic_CG:
             
                 print("solving node", bb_node.lb)
                 
-            status, local_lb, local_ub = self.solveNode(bb_node, max_node_iter, timelimit, starttime)
+            status, local_lb, local_ub, ll_gap = self.solveNode(bb_node, max_node_iter, timelimit, starttime)
 
 
             if status == "infeasible":
@@ -374,6 +374,7 @@ class OA_elastic_CG:
         q_l = None
 
         obj_l = 1e15
+        ll_gap = 1e15
         
         last_gap = 1e14
         
@@ -401,7 +402,7 @@ class OA_elastic_CG:
                 if self.network.params.PRINT_BB_BASIC:
                     print(status)
 
-                return status, None, None
+                return status, None, None, 1e15
 
 
             lb = obj_l
@@ -475,7 +476,7 @@ class OA_elastic_CG:
             if ll_gap < self.params.ll_tol:
                 if self.params.PRINT_BB_INFO:
                     print("end by low ll gap", gap, self.ub, lb)
-                return "end-ll", lb, node_ub
+                return "end-ll", lb, node_ub, ll_gap
  
             if gap < min_gap:
                 if self.params.PRINT_BB_INFO:
@@ -515,7 +516,7 @@ class OA_elastic_CG:
             last_gap = gap
             
         
-        return "solved", lb, node_ub
+        return "solved", lb, node_ub, ll_gap
         
         
         
