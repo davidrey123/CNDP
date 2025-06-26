@@ -142,7 +142,7 @@ class OA_elastic_CG:
         
         
         
-        root = BB_node.BB_node(self.q_lb.copy(), self.q_ub.copy(), lb, 1e15, self.mu_lb, self.mu_ub)
+        root = BB_node.BB_node(self.q_lb.copy(), self.q_ub.copy(), lb, 1e15, 1e15, self.mu_lb, self.mu_ub)
         
         
         bb_nodes.append(root)
@@ -151,11 +151,12 @@ class OA_elastic_CG:
         min_gap = 1e-2
 
         global_lb = 0
+        global_ll_gap = 1e15
 
         max_iter = 10000
         iter = 0
         
-        print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time", "ll gap")
+        print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time", "local ll gap", "global ll gap")
         
         while len(bb_nodes) > 0 and iter < max_iter:
             
@@ -225,10 +226,13 @@ class OA_elastic_CG:
                 continue
                  
             global_lb = local_lb
+            
+            global_ll_gap = ll_gap
 
             if len(bb_nodes) > 0:
                 for n in bb_nodes:
                     global_lb = min(global_lb, n.lb)
+                    global_ll_gap = max(global_ll_gap, n.ll_gap)
 
             global_lb = max(0, global_lb) # numerical errors
             gap = min(1, self.ub)
@@ -239,7 +243,7 @@ class OA_elastic_CG:
 
             elapsed_time = time.time() - starttime
 
-            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}", ll_gap)
+            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}", ll_gap, global_ll_gap)
             
             
 
@@ -316,8 +320,8 @@ class OA_elastic_CG:
                     mu_ub_1 = self.calcMuBounds(q_ub_1)
                     mu_lb_2 = self.calcMuBounds(q_lb_2)
 
-                    left = BB_node.BB_node(q_lb_1, q_ub_1, local_lb, local_ub, bb_node.mu_lb, mu_ub_1)
-                    right = BB_node.BB_node(q_lb_2, q_ub_2, local_lb, local_ub, mu_lb_2, bb_node.mu_ub)
+                    left = BB_node.BB_node(q_lb_1, q_ub_1, local_lb, ll_gap, local_ub, bb_node.mu_lb, mu_ub_1)
+                    right = BB_node.BB_node(q_lb_2, q_ub_2, local_lb, ll_gap, local_ub, mu_lb_2, bb_node.mu_ub)
 
 
 

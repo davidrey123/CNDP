@@ -2,13 +2,14 @@ from src import Params
 from src import Node
 
 class BB_node:
-    def __init__(self, q_lb, q_ub, lb, ub, mu_lb, mu_ub):
+    def __init__(self, q_lb, q_ub, lb, ll_gap, ub, mu_lb, mu_ub):
         self.q_lb = q_lb
         self.q_ub = q_ub
         self.lb = lb
         self.ub = ub
         self.mu_lb = mu_lb
         self.mu_ub = mu_ub
+        self.ll_gap = ll_gap
         
         self.largest_diff = 0
         
