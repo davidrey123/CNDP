@@ -160,7 +160,7 @@ class OA_elastic_CG:
         
         bb_nodes = []
         
-        root = BB_node.BB_node(self.rmp.y_lb.copy(), self.rmp.y_ub.copy(), lb, 1e15, self.mu_lb, self.mu_ub)
+        root = BB_node.BB_node(self.rmp.y_lb.copy(), self.rmp.y_ub.copy(), lb, 1e15, 1e15, self.mu_lb, self.mu_ub)
         
         
         bb_nodes.append(root)
@@ -169,11 +169,12 @@ class OA_elastic_CG:
         min_gap = 1e-2
 
         global_lb = 0
+        global_ll_gap = 0
 
         max_iter = 10000
         iter = 0
         
-        print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time", "ll gap")
+        print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time", "local ll gap", "global ll gap")
         
         while len(bb_nodes) > 0 and iter < max_iter:
             
@@ -213,7 +214,7 @@ class OA_elastic_CG:
             if self.network.params.PRINT_BB_INFO:
                 print("\tavail nodes")
                 for n in bb_nodes:
-                    print("\t\t", n.lb, n.ub)
+                    print("\t\t", n.lb, n.ub, n.ll_gap)
 
                     #print("\t\t\t", n.y_lb)
                     #print("\t\t\t", n.y_ub)
@@ -253,10 +254,14 @@ class OA_elastic_CG:
             if global_lb > 0:
                 gap = (self.ub - global_lb) / global_lb
 
+            global_ll_gap = ll_gap
+            
+            for n in bb_nodes:
+                global_ll_gap = max(global_ll_gap, n.ll_gap)
 
             elapsed_time = time.time() - starttime
 
-            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}", ll_gap)
+            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}", ll_gap, global_ll_gap)
 
             if self.network.params.PRINT_BB_INFO:
                 print("\tsolved node", bb_node.lb, local_lb, local_ub)
@@ -392,8 +397,8 @@ class OA_elastic_CG:
                     mu_ub1 = self.calcTTs(y_ub_1)
                     mu_lb_2 = self.calcTTs(y_lb_2)
 
-                    left = BB_node.BB_node(y_lb_1, y_ub_1, local_lb, local_ub, bb_node.mu_lb, mu_ub1)
-                    right = BB_node.BB_node(y_lb_2, y_ub_2, local_lb, local_ub, mu_lb_2, bb_node.mu_ub)
+                    left = BB_node.BB_node(y_lb_1, y_ub_1, local_lb, ll_gap, local_ub, bb_node.mu_lb, mu_ub1)
+                    right = BB_node.BB_node(y_lb_2, y_ub_2, local_lb, ll_gap, local_ub, mu_lb_2, bb_node.mu_ub)
 
 
                     # REMOVE THIS
