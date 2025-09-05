@@ -35,7 +35,8 @@ class Bush:
         
         #for l in self.network.links:
         #    self.flow[l] = 0
-            
+      
+           
         self.loadDemand()
         
         
@@ -65,6 +66,7 @@ class Bush:
                 d = self.origin.getDemand(s)
                 #print(d)
                 if d > 0:
+                    #print("\tdem", self.origin, s, d)
                     curr = s
                     
                     while curr != self.origin:

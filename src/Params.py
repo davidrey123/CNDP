@@ -55,7 +55,7 @@ class Params:
         self.CPLEX_threads = 1
         self.BB_timelimit = 3600
         self.BB_tol = 1E-2
-        self.ll_tol = 1e-2
+        self.ll_tol = 1E-4
         
         #---BPC / BC params
         self.OAcut_tol = 0.05
@@ -85,7 +85,8 @@ class Params:
         self.PRINT_PAS_DEBUG = False
         
         self.PRINT_BB_INFO = False #---prints detailed BB info
-        self.PRINT_BB_BASIC = False #---prints only basic BB info       
+        self.PRINT_BB_BASIC = True #---prints only basic BB info       
+        self.PRINT_SOL = False #---prints only basic BB info     
         
         self.VALIDATE_BASE = False # validate solution is feasible 
         

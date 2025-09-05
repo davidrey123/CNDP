@@ -153,10 +153,10 @@ class OA_elastic_CG:
         global_lb = 0
         global_ll_gap = 1e15
 
-        max_iter = 10000
+        max_iter = 100
         iter = 0
         
-        print("iter", "global_lb", "best ub", "local_lb", "gap", "elapsed_time", "local ll gap", "global ll gap")
+        print("iter", "global_lb", "best ub", "local_lb", "local_ub", "gap", "elapsed_time", "local ll gap", "global ll gap")
         
         while len(bb_nodes) > 0 and iter < max_iter:
             
@@ -243,7 +243,7 @@ class OA_elastic_CG:
 
             elapsed_time = time.time() - starttime
 
-            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}", ll_gap, global_ll_gap)
+            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{local_ub:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}", ll_gap, global_ll_gap)
             
             
 
@@ -297,8 +297,8 @@ class OA_elastic_CG:
                     
                 branch = True
 
-                if status == "end-ll":
-                    branch = False
+                #if status == "end-ll":
+                #    branch = False
                
 
                 if branch:
@@ -345,7 +345,8 @@ class OA_elastic_CG:
         if self.network.params.PRINT_BB_INFO:
             print("best obj", self.calcOFV(self.best_x, self.best_q))
             
-        self.printSolution(self.best_x, self.best_q);
+        if self.params.PRINT_SOL:
+            self.printSolution(self.best_x, self.best_q);
         
   
     def solveNode(self, bbnode, max_iter, timelimit, starttime):
@@ -421,10 +422,14 @@ class OA_elastic_CG:
 
             x_f, obj_f = self.TAP(q_l)
             
+            
             '''
             for r in self.network.origins:
                 for s in r.destSet:
-                    print(r, s, self.q_target[(r,s)], q_l[(r,s)])
+                    print("q", r, s, q_l[(r,s)])
+            
+            for a in self.network.links:
+                print("x", a, x_l[a], x_f[a])
             '''
             
             ll_f = self.calcLLobj(x_f)
@@ -443,7 +448,9 @@ class OA_elastic_CG:
             self.addCuts(x_l, x_f, q_l, eta_l)
 
             
-         
+            if ll_gap < self.params.ll_tol:
+                obj_f = obj_l
+            
             node_ub = min(node_ub, obj_f)
             
             if self.ub > obj_f:
@@ -478,11 +485,13 @@ class OA_elastic_CG:
                     
                 
 
-            
+            '''
             if ll_gap < self.params.ll_tol:
                 if self.params.PRINT_BB_INFO:
                     print("end by low ll gap", gap, self.ub, lb)
+
                 return "end-ll", lb, node_ub, ll_gap
+            '''
  
             if gap < min_gap:
                 if self.params.PRINT_BB_INFO:
@@ -769,8 +778,8 @@ class OA_elastic_CG:
         for r in self.network.origins:
             for s in r.destSet:
                 if (r,s) in self.q_target:
-                    self.q_lb[(r,s)] = self.q_target[(r,s)]*0.8
-                    self.q_ub[(r,s)] = self.q_target[(r,s)]*1.2
+                    self.q_lb[(r,s)] = self.q_target[(r,s)]*0.999
+                    self.q_ub[(r,s)] = self.q_target[(r,s)]*1.001
         
         self.rmp.parameters.read.scale = -1
 
