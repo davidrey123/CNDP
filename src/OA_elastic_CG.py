@@ -131,7 +131,9 @@ class OA_elastic_CG:
         starttime = time.time()
         
         
+        self.initRMPFix()
         self.initRMP()
+        
         
 
         
@@ -447,9 +449,25 @@ class OA_elastic_CG:
             eta_l = {a : self.rmp.eta[a].solution_value for a in self.network.links}
             self.addCuts(x_l, x_f, q_l, eta_l)
 
+            ll_gap = (ll_l - ll_f) / ll_f
             
             if ll_gap < self.params.ll_tol:
-                obj_f = obj_l
+                print("\n\nSOLVE FIXED\n\n")
+                ll_l2, q_l2 = self.solveFixed(x_f, bbnode.q_lb, bbnode.q_ub)
+                x_f2, obj_f2 = self.TAP(q_l2)
+                
+                obj_l2 = self.calcOFV(x_f, q_l2)
+                
+                print("test 4 solve", obj_l, obj_l2, obj_f, obj_f2)
+                # solve rmp with fixed l -> demand
+                # solve tap with new demand
+                
+                for r in self.network.origins:
+                    for s in r.getDests():
+                        print((r,s), q_l[(r,s)], q_l2[(r,s)])
+            
+                exit(1)
+            
             
             node_ub = min(node_ub, obj_f)
             
@@ -470,7 +488,7 @@ class OA_elastic_CG:
             else:
                 gap = 1
                 
-            ll_gap = (ll_l - ll_f) / ll_f
+            
             
             
             #print(obj_f)
@@ -666,6 +684,7 @@ class OA_elastic_CG:
     
     def addObjCut_q(self, r, s, qhat, idx):
         self.rmp.add_constraint(self.rmp.mu_w[(r,s)] >= (qhat-self.q_target[(r,s)]) * (qhat-self.q_target[(r,s)]) + (self.rmp.q[(r,s)] - qhat)* 2*(qhat-self.q_target[(r,s)]), ctname="oa_mu_q_"+str(idx)+"-"+str(r)+"_"+str(s))
+        self.rmp_fix.add_constraint(self.rmp_fix.mu_w[(r,s)] >= (qhat-self.q_target[(r,s)]) * (qhat-self.q_target[(r,s)]) + (self.rmp_fix.q[(r,s)] - qhat)* 2*(qhat-self.q_target[(r,s)]), ctname="oa_mu_q_"+str(idx)+"-"+str(r)+"_"+str(s))
      
     def addOACut_x(self, a, x_l, idx):
         self.rmp.add_constraint(self.rmp.beta[a] >= a.getPrimitiveTravelTime(x_l) + (self.rmp.x[a] - x_l) * a.getTravelTime(x_l, self.network.type), ctname="oa_beta_"+str(idx)+"-"+str(a))
@@ -766,6 +785,7 @@ class OA_elastic_CG:
 
         self.x_saved = dict()
         self.q_saved = dict()
+
         
         for a in self.network.links:
             self.x_saved[a] = list()
@@ -778,8 +798,8 @@ class OA_elastic_CG:
         for r in self.network.origins:
             for s in r.destSet:
                 if (r,s) in self.q_target:
-                    self.q_lb[(r,s)] = self.q_target[(r,s)]*0.999
-                    self.q_ub[(r,s)] = self.q_target[(r,s)]*1.001
+                    self.q_lb[(r,s)] = self.q_target[(r,s)]*0.8
+                    self.q_ub[(r,s)] = self.q_target[(r,s)]*1.2
         
         self.rmp.parameters.read.scale = -1
 
@@ -865,7 +885,7 @@ class OA_elastic_CG:
         
        
         for a in self.network.links:
-            self.rmp.add_constraint(sum(self.rmp.xc[(a,r)] for r in self.network.origins) == self.rmp.x[a], ctname="xc-eq_"+str(a)+"_"+str(r))
+            self.rmp.add_constraint(sum(self.rmp.xc[(a,r)] for r in self.network.origins) == self.rmp.x[a], ctname="xc-eq_"+str(a)+"_r")
 
 
             for i in self.network.nodes:                    
@@ -979,7 +999,120 @@ class OA_elastic_CG:
                 for p in self.paths[r][s]:
                     all_paths.append(p)
         return all_paths  
-            
-            
         
+    
+    def solveFixed(self, xfix, q_lb, q_ub):
+        
+        
+        for a in self.network.links:
+            self.fix_link_cuts[a] = self.rmp_fix.add_constraint(self.rmp_fix.x[a] == xfix[a])
+        
+        for r in self.network.origins:
+            for s in r.getDests():
+                self.fix_q_bounds_lb = self.rmp_fix.add_constraint(self.rmp_fix.q[(r,s)] >= q_lb[(r,s)])
+                self.fix_q_bounds_ub = self.rmp_fix.add_constraint(self.rmp_fix.q[(r,s)] <= q_ub[(r,s)])
+
+                
+        #self.addTAPDualFixed(xfix)
+        
+        
+        self.rmp_fix.solve(log_output=False)
+        
+        print(self.rmp.solve_details.status)
+            
+            
+        q_l = {(r,s): self.rmp.q[(r,s)].solution_value for r in self.network.origins for s in r.getDests()}
+        obj_l = self.rmp.objective_value    
+        
+        for a in self.network.links:
+            self.rmp_fix.remove_constraint(self.fix_link_cuts[a])
+            
+        for r in self.network.origins:
+            for s in r.getDests():
+                self.rmp_fix.remove_constraint(self.fix_q_bounds_lb)
+                self.rmp_fix.remove_constraint(self.fix_q_bounds_ub)
+
+        
+        #self.rmp_fix.remove_constraint(self.rmp_fix.tap_dual)
+        
+        return obj_l, q_l
+        
+
+    def initRMPFix(self):   
+        self.rmp_fix = Model()
+        
+
+        self.rmp_fix.parameters.read.scale = -1
+
+        self.fix_link_cuts = dict()
+        self.fix_q_bounds_lb = dict()
+        self.fix_q_bounds_ub = dict()
+        
+        
+        
+        self.rmp_fix.mu_w = {(r,s):self.rmp_fix.continuous_var(lb=0) for r in self.network.origins for s in r.getDests()}
+
+        self.rmp_fix.x = {a:self.rmp_fix.continuous_var(lb=0, name="x_"+str(a)) for a in self.network.links}
+        
+        self.rmp_fix.q = {(r,s): self.rmp_fix.continuous_var() for r in self.network.origins for s in r.getDests()}
+        
+        self.rmp_fix.xc = {(a,r):self.rmp_fix.continuous_var(lb=0, name="xc_"+str(a)+"_"+str(r)) for a in self.network.links for r in self.network.origins}
+
+
+        for a in self.network.links:
+            self.rmp_fix.add_constraint(sum(self.rmp_fix.xc[(a,r)] for r in self.network.origins) == self.rmp_fix.x[a], ctname="xc-eq_"+str(a)+"_r")
+
+
+            for i in self.network.nodes:                    
+                for r in self.network.origins:            
+
+                    if i.id == r.id:
+                        dem = - sum(self.rmp_fix.q[(r,s)] for s in r.getDests())                
+                    elif isinstance(i, type(r)) == True and i in r.getDests():
+                        dem = self.rmp_fix.q[(r,i)]
+                    else:
+                        dem = 0
+
+                    #print(i, r, dem)
+
+                    self.rmp_fix.add_constraint(sum(self.rmp_fix.xc[(a,r)] for a in i.incoming) - sum(self.rmp_fix.xc[(a,r)] for a in i.outgoing) == dem, ctname="cons_"+str(i)+"_"+str(r))
+
+
+        self.rmp_fix.objfunc_q = self.obj_weight * sum(self.rmp_fix.mu_w[(r,s)] for r in self.network.origins for s in r.getDests())
+        self.rmp_fix.objfunc = self.rmp_fix.objfunc_q
+        self.rmp_fix.minimize(self.rmp_fix.objfunc)
+        
+    def addTAPDualFixed(self, x):
+        eta = dict()
+        pi = dict()
+        
+        for a in self.network.links:
+            eta[a] = 0
+            a.x = x[a] # for travel time calculation to be correct
+            
+        for r in self.network.origins:
+            
+            self.network.dijkstras(r, "UE")
+            
+            for i in self.network.nodes:
+                pi[(r,i)] = i.cost
+        
+        
+        #self.rmp.add_constraint(self.rmp.eta[a] >= self.rmp.pi[(r,a.end)] - self.rmp.pi[(r, a.start)] - a.t_ff)
+        for a in self.network.links:
+            eta[a] = max(eta[a], pi[r, a.end] - pi[r,a.start] - a.t_ff)
+            
+            
+        Beckmann = sum(a.getPrimitiveTravelTimeC(a.x, 0) for a in self.network.links)
+        
+        demand = sum(pi[(r,s)] * self.rmp_fix.q[(r,s)] for r in self.network.origins for s in r.getDests())
+        
+        eta_term = 0
+        for a in self.network.links:
+            g = a.getConst()
+            p = a.beta
+            ge = pow(g, 1/p)
+            eta_term += p / ((p+1) * ge) * pow(eta[a], (p+1)/p)
+            
+        self.rmp_fix.tap_dual = self.rmp_fix.add_constraint(Beckmann <= demand - eta_term)
                 
