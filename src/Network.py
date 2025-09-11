@@ -826,5 +826,41 @@ class Network:
             for r in self.origins:
                 for s in r.getDests():
                     f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(r.demand[s])+"\n")
+    
+    
+    def getDualBeckmannOFV(self):
+        # calc tau_ri
+        # calc eta_ij
         
+        tau = dict()
+        
+        for r in self.origins:
+            self.dijkstras(r, "UE")
+            for i in self.nodes:
+                tau[(r,i)] = i.cost
+        
+        eta = dict()
+        for a in self.links:
+            eta[a] = 0
+            
+            for r in self.origins:
+                eta[a] = max(eta[a], tau[(r, a.end)] - tau[(r, a.start)] - a.t_ff)
+                
+        
+        tau_term = 0
+        
+        for r in self.origins:
+            for s in r.getDests():
+                tau_term += r.getDemand(s) * tau[(r,s)]
+        
+        eta_term = 0
+             
+        for a in self.links:
+            g = a.getConst()
+            p = a.beta
+            ge = pow(g, 1/p)
+            eta_term += p / ((p+1) * ge) * pow(eta[a], (p+1)/p)
+            
+        return tau_term - eta_term
+
 

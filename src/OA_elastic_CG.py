@@ -435,6 +435,8 @@ class OA_elastic_CG:
             ll_f = self.calcLLobj(x_f)
             #print("calc ll f", ll_f)
             
+            ll_f_lb = self.network.getDualBeckmannOFV()
+            #print("calc ll f", ll_f)
             
             
             if self.params.PRINT_BB_INFO:
@@ -447,6 +449,16 @@ class OA_elastic_CG:
             eta_l = {a : self.rmp.eta[a].solution_value for a in self.network.links}
             self.addCuts(x_l, x_f, q_l, eta_l)
 
+            ll_gap = (ll_l - ll_f) / ll_f
+            
+            
+            
+            ll_gap = (ll_l - ll_f_lb) / ll_f_lb
+            
+            print("ll ofv", ll_l, ll_f, ll_f_lb)
+            
+            
+            
             
             if ll_gap < self.params.ll_tol:
                 obj_f = obj_l
@@ -470,7 +482,6 @@ class OA_elastic_CG:
             else:
                 gap = 1
                 
-            ll_gap = (ll_l - ll_f) / ll_f
             
             
             #print(obj_f)
