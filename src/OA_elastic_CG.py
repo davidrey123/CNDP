@@ -968,6 +968,10 @@ class OA_elastic_CG:
         xhat = {a:a.x for a in self.network.links}
         obj_f = self.calcOFV(xhat, q)
         
+        primal = self.network.getBeckmannOFV()
+        dual = self.network.getDualBeckmannOFV()
+        print("beckmann check tapas", primal, dual, (primal - dual)/dual)
+        
         return xhat, obj_f
         
     def printSolution(self, x, q):
