@@ -403,8 +403,14 @@ class OA_elastic_CG:
             
             #if self.params.PRINT_BB_INFO:
                 #print("\tsolving RMP")
+                
+            start_t = time.time()
+                
             status, x_l, q_l, obj_l = self.solveRMP()
             
+            rmp_time = time.time() - start_t
+            
+            print("rmp time", rmp_time)
             
             
             if status == 'infeasible':
@@ -421,9 +427,13 @@ class OA_elastic_CG:
             #print("calc ll l", ll_l)
             
 
+            start_t = time.time()
 
             x_f, obj_f = self.TAP(q_l)
             
+            tap_time = time.time() - start_t
+            
+            print("tap time", tap_time)
             
             '''
             for r in self.network.origins:
@@ -435,8 +445,11 @@ class OA_elastic_CG:
             '''
             
             ll_f = self.calcLLobj(x_f)
+            ll_f_lb = self.network.getDualBeckmannOFV()
             #print("calc ll f", ll_f)
+            ll_gap = (ll_l - ll_f_lb) / ll_f_lb
             
+            print("ll ofv", ll_l, ll_f, ll_f_lb)
             
             
             if self.params.PRINT_BB_INFO:
@@ -449,9 +462,10 @@ class OA_elastic_CG:
             eta_l = {a : self.rmp.eta[a].solution_value for a in self.network.links}
             self.addCuts(x_l, x_f, q_l, eta_l)
 
-            ll_gap = (ll_l - ll_f) / ll_f
+            
             
             if ll_gap < self.params.ll_tol:
+                '''
                 print("\n\nSOLVE FIXED\n\n")
                 ll_l2, q_l2 = self.solveFixed(x_f, bbnode.q_lb, bbnode.q_ub)
                 x_f2, obj_f2 = self.TAP(q_l2)
@@ -466,7 +480,10 @@ class OA_elastic_CG:
                     for s in r.getDests():
                         print((r,s), q_l[(r,s)], q_l2[(r,s)])
             
-                exit(1)
+
+                '''
+                obj_f = obj_l
+                x_f = x_l
             
             
             node_ub = min(node_ub, obj_f)
@@ -968,10 +985,11 @@ class OA_elastic_CG:
         xhat = {a:a.x for a in self.network.links}
         obj_f = self.calcOFV(xhat, q)
         
+        '''
         primal = self.network.getBeckmannOFV()
         dual = self.network.getDualBeckmannOFV()
         print("beckmann check tapas", primal, dual, (primal - dual)/dual)
-        
+        '''
         return xhat, obj_f
         
     def printSolution(self, x, q):
