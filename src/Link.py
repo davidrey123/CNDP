@@ -32,6 +32,10 @@ class Link:
         self.xstar = 0
         self.dual = 0 # for CG
 
+    def getTTBike(self):
+        # miles / mi/hr * 60min/hr
+        return length / 10 * 60
+        
     def setFlow(self, x):
         self.x = x
     
