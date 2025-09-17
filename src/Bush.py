@@ -1051,7 +1051,7 @@ class Bush:
     			
     				if path is None:
     					continue
-    				maxflow = 1e15
+    				maxflow = self.origin.getDemand(s)
     				for a in path:
     					maxflow = min(maxflow, self.flow[a])
     				
