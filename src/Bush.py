@@ -1031,3 +1031,35 @@ class Bush:
         
     def __str__(self):
         return "bush "+str(self.origin.id)
+        
+    def getUsedPaths(self, output):
+
+    	rem_dem = 0
+    	
+    	for s in self.network.zones:
+    		if self.origin.getDemand(s) > 0:
+    			output[s] = list()
+    			rem_dem += self.origin.getDemand(s)
+    		
+    	
+    	while(rem_dem > 1e-4):
+    		tree = self.minUsedTree()
+    		
+    		for s in self.network.zones:
+    			if self.origin.getDemand(s) > 0:
+    				path = self.tracePath(self.origin, s)
+    			
+    				if path is None:
+    					continue
+    				maxflow = 1e15
+    				for a in path:
+    					maxflow = min(maxflow, self.flow[a])
+    				
+    				if maxflow > 0:
+    					output[(self.origin, s)].append(path)
+    				
+    					for a in path:
+    						self.flow[a] -= maxflow
+    				
+    					rem_dem -= maxflow
+    		
