@@ -1035,66 +1035,67 @@ class Bush:
         
     def getUsedPaths(self, output):
 
-		
-		
-    	rem_dem = 0
-    	self.topologicalSort()
-    	flow_copy = self.flow.copy()
-    	
-    	dem = dict()
-    	
-    	for s in self.network.zones:
-    		if self.origin.getDemand(s) > 0:
-    			rem_dem += self.origin.getDemand(s)
-    			dem[s] = self.origin.getDemand(s)
-    		
-    	
-    	while(rem_dem > 1e-4):
-    		tree = self.minUsedTree()
-    		
-    		
-    		
-    		pathadded = False
-    		
-    		for s in self.network.zones:
-    			if self.origin.getDemand(s) > 0:
-    				path = self.tracePath(self.origin, s)
-    			
-    				if path is None:
-    					continue
-    				maxflow = dem[s]
-    				for a in path:
-    					maxflow = min(maxflow, self.flow[a])
-    				
-    				if maxflow > 1e-6:
-    					output[(self.origin, s)].append(path)
-    					dem[s] -= maxflow
-    				
-    					for a in path:
-    						self.flow[a] -= maxflow
-    				
-    					rem_dem -= maxflow
-    					pathadded = True
-    		'''			
-    		if not pathadded:
-    			tree = self.printUsedTree()
-    			print("origin", self.origin)
-    			print(tree)
-    			print("--")
-    			for a in self.flow:
-    				if self.flow[a] > 1e-6:
-    					print(a, self.flow[a])
-    				else:
-    					print(a, 0)
-    				
-    			print("--")
-    			
-    			for s in dem:
-    				print(s, dem[s])
-    			exit()
-			'''
-			
-			
-	
+        
+        
+        rem_dem = 0
+        self.removeCycles()
+        self.topologicalSort()
+        flow_copy = self.flow.copy()
+        
+        dem = dict()
+        
+        for s in self.network.zones:
+            if self.origin.getDemand(s) > 0:
+                rem_dem += self.origin.getDemand(s)
+                dem[s] = self.origin.getDemand(s)
+            
+        
+        while(rem_dem > 1e-4):
+            tree = self.minUsedTree()
+            
+            
+            
+            pathadded = False
+            
+            for s in self.network.zones:
+                if self.origin.getDemand(s) > 0:
+                    path = self.tracePath(self.origin, s)
+                
+                    if path is None:
+                        continue
+                    maxflow = dem[s]
+                    for a in path:
+                        maxflow = min(maxflow, self.flow[a])
+                    
+                    if maxflow > 1e-6:
+                        output[(self.origin, s)].append(path)
+                        dem[s] -= maxflow
+                    
+                        for a in path:
+                            self.flow[a] -= maxflow
+                    
+                        rem_dem -= maxflow
+                        pathadded = True
+            '''            
+            if not pathadded:
+                tree = self.printUsedTree()
+                print("origin", self.origin)
+                print(tree)
+                print("--")
+                for a in self.flow:
+                    if self.flow[a] > 1e-6:
+                        print(a, self.flow[a])
+                    else:
+                        print(a, 0)
+                    
+                print("--")
+                
+                for s in dem:
+                    print(s, dem[s])
+                exit()
+            '''
+            
+            
+    
 
-    		
+            
