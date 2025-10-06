@@ -55,6 +55,7 @@ class OA_elastic_CG:
         self.q_base = dict()
         self.xc_base = dict()
         
+        '''
         scenario = "0"
         
         if scenario != "0":
@@ -85,7 +86,7 @@ class OA_elastic_CG:
                 q = float(data[2])
                 self.q_base[(self.network.findNode(r), self.network.findNode(s))] = q  
 
-       
+       '''
         
         self.network.params.equilibrate_demand = True
         
@@ -260,6 +261,8 @@ class OA_elastic_CG:
                 
 
             if gap < min_gap:
+                if gap < 0:
+                    print(len(bb_nodes))
                 break
 
             if elapsed_time > timelimit:
@@ -296,13 +299,16 @@ class OA_elastic_CG:
                                 worst = (r,s)
                     
                 branch = True
+                
+                if ll_gap < self.params.ll_tol:
+                    branch = False
 
                 #if status == "end-ll":
                 #    branch = False
                
 
                 if branch:
-                    
+                    print("branching")
                     
                     q_lb_1 = bb_node.q_lb.copy()
                     q_lb_2 = bb_node.q_lb.copy()
@@ -704,7 +710,8 @@ class OA_elastic_CG:
                 if (r,s) in self.q_target:
                     idx = self.addOApoint_q(r, s, q_l[(r,s)])
                     if idx >= 0:
-                        self.addObjCut_q(r, s, q_l[(r,s)], idx)
+                        if (r,s) in self.q_target:
+                            self.addObjCut_q(r, s, q_l[(r,s)], idx)
 
         for a in self.network.links:
             idx = self.addOApoint_eta(a, eta_l[a])
@@ -906,11 +913,13 @@ class OA_elastic_CG:
         self.rmp.solve(log_output=False)
         t_solve = time.time() - t_solve
         
-        if self.rmp.solve_details.status == 'infeasible' or self.rmp.solve_details.status == 'integer infeasible':
+        status = self.rmp.solve_details.status
+        if status == 'infeasible' or status == 'integer infeasible':
+            print(status)
             return 'infeasible', dict(), dict(), 1e15
         
-        if self.rmp.solve_details.status == 'optimal with unscaled infeasibilities':
-            print(self.rmp.solve.details.status)
+        if status == 'optimal with unscaled infeasibilities':
+            print(status)
             return 'infeasible', dict(), dict(), 1e15
             
             

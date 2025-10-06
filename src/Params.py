@@ -55,7 +55,7 @@ class Params:
         self.CPLEX_threads = 1
         self.BB_timelimit = 3600
         self.BB_tol = 1E-2
-        self.ll_tol = 1E-4
+        self.ll_tol = 1E-2
         
         #---BPC / BC params
         self.OAcut_tol = 0.05

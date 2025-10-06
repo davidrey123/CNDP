@@ -1,6 +1,6 @@
 #---modules
 from src import Network
-from src import OA_elastic_CG
+from src import OA_dual_CG
 from decimal import Decimal
 #import polytope as pc
 import sys
@@ -56,6 +56,8 @@ def main():
 
 	network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 	y = network.initCalcY()
+	#network.tapas("UE", y)
+	#network.generateScenario("40_10_10", 0.4, 0.1, 0.1)
 
 	#print("starting tapas")
 
@@ -70,7 +72,7 @@ def main():
 	#print("TD", network.TD)
 
 	#test = OA_CNDP_elastic.OA_CNDP_elastic(network)
-	test = OA_elastic_CG.OA_elastic_CG(network, False, 0.5, scenario)
+	test = OA_dual_CG.OA_elastic_CG(network, False, 0.5, scenario)
 
 	#obj, tot_time, tap_time, iter, = test.solve()
 	test.solve()

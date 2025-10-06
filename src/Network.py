@@ -48,11 +48,11 @@ class Network:
             if a not in self.links2:
                 self.links1.append(a)
         
-        self.B = self.TC * B_prop # budget        
+        self.B = self.TC * B_prop # budget         
         
         #print('Total scaled demand %.1f' % self.TD)
         #print('Total cost %.1f - Budget %.1f' % (self.TC, self.B))
-        
+    
     def setType(self, type):
         self.type = type
         
@@ -782,16 +782,16 @@ class Network:
         for p in removed:
             self.removeAPAS(p)
             
-    def generateScenarios(self, start, num_scenarios, pct_links, error):
+    def generateScenarios(self, start, num_scenarios, pct_links, x_error, q_error):
         self.printLinkFlows("0", len(self.links), 0)
         self.printODDemand("0")
         
         for i in range(start, num_scenarios+1+start):
-            self.generateScenario(i, pct_links, error)
+            self.generateScenario(i, pct_links, x_error, q_error)
             
-    def generateScenario(self, scenario, pct_links, error):
-        self.printLinkFlows(scenario, round(len(self.links)* pct_links), error)
-        self.printODDemand(scenario)
+    def generateScenario(self, scenario, pct_links, x_error, q_error):
+        self.printLinkFlows(scenario, round(len(self.links)* pct_links), x_error)
+        self.printODDemand(scenario, q_error)
         
     def printLinkFlows(self, scenario, numlinks, error):
         #print(numlinks)
@@ -814,18 +814,20 @@ class Network:
                 print(a, x, x_err, r)
                 f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(x_err)+"\n")
         
-        '''     
+             
         with open("data/"+self.name+"/linkflowsC_"+str(scenario)+".txt", "w") as f:
             for a in self.links:
                 for r in self.origins:
                     f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(r.id)+"\t"+str(r.bush.getFlow(a))+"\n")
-        '''
+        
 
-    def printODDemand(self, scenario):
+    def printODDemand(self, scenario, q_error):
         with open("data/"+self.name+"/demand_"+str(scenario)+".txt", "w") as f:
             for r in self.origins:
                 for s in r.getDests():
-                    f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(r.demand[s])+"\n")
+                    rnd = random.random() * q_error*2 - q_error
+                    q_err = r.demand[s] * (1 + rnd)
+                    f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(q_err)+"\n")
     
     
     def getDualBeckmannOFV(self):
