@@ -517,19 +517,19 @@ class OA_elastic_CG:
             '''
  
             if gap < min_gap:
-                #if self.params.PRINT_BB_INFO:
-                print("end by low gap", gap, self.ub, lb)
+                if self.params.PRINT_BB_INFO:
+                    print("end by low gap", gap, self.ub, lb)
                 break
                 
             if ll_l <= ll_f:
-                #if self.params.PRINT_BB_INFO:
-                print("end by ll")
+                if self.params.PRINT_BB_INFO:
+                    print("end by ll")
                 break
                 
             # lb is worse than best ub
             if lb > self.ub:
-                #if self.params.PRINT_BB_INFO:
-                print("end b/c lb > ub")
+                if self.params.PRINT_BB_INFO:
+                    print("end b/c lb > ub")
                 break
                 
             
@@ -540,8 +540,8 @@ class OA_elastic_CG:
             
             # if everything is the same, then adding another cut is pointless
             if self.isSameSolution(last_x_l, x_l, last_q_l, q_l):
-                #if self.params.PRINT_BB_INFO:
-                print("end due to same sol")
+                if self.params.PRINT_BB_INFO:
+                    print("end due to same sol")
                 break
                 
             if elapsed > timelimit:
