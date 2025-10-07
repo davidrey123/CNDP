@@ -425,60 +425,66 @@ class OA_elastic_CG:
             #print("calc ll l", ll_l)
             
 
-
-            x_f, obj_f = self.TAP(q_l)
+            ll_f = 0
+            ll_f_lb = 0
+            ll_gap = 1e15
+            obj_f = 1e14
             
             
-            '''
-            for r in self.network.origins:
-                for s in r.destSet:
-                    print("q", r, s, q_l[(r,s)])
-            
-            for a in self.network.links:
-                print("x", a, x_l[a], x_f[a])
-            '''
-            
-            ll_f = self.calcLLobj(x_f)
-            #print("calc ll f", ll_f)
-            
-            ll_f_lb = self.network.getDualBeckmannOFV()
-            #print("calc ll f", ll_f)
-            
-            
-            if self.params.PRINT_BB_INFO:
-                print("rmp obj ", obj_l, self.calcOFV(x_l, q_l), self.calcOFV(x_f, q_l), "from x", self.calcOFV_x(x_f), "from q", self.calcOFV_q(q_l))
-                print("ll obj from rmp ", self.getRMP_ll_obj(), "rmp ll ub", self.getRMP_ll_ub(), "actual rmp ll", ll_l, "TAP", ll_f)
-                #self.network.checkDualBeckmann()
-            
-            #self.printSolution(x_l, q_l, y_l)
-
             eta_l = {a : self.rmp.eta[a].solution_value for a in self.network.links}
-            self.addCuts(x_l, x_f, q_l, eta_l)
+            self.addCuts(x_l, q_l, eta_l)
+            
+            if iteration > max_iter/2.0:
 
-            ll_gap = (ll_l - ll_f) / ll_f
-            
-            
-            
-            ll_gap = (ll_l - ll_f_lb) / ll_f_lb
-            
-            print("ll ofv", ll_l, ll_f, ll_f_lb)
-            
-            
-            
-            
-            if ll_gap < self.params.ll_tol:
-                obj_f = obj_l
-            
-            node_ub = min(node_ub, obj_f)
-            
-            if self.ub > obj_f:
-                self.ub = obj_f
-                self.best_x = x_f
-                self.best_q = q_l
+                x_f, obj_f = self.TAP(q_l)
                 
                 
-            if best_ub > obj_f:
-                best_ub = obj_f
+                '''
+                for r in self.network.origins:
+                    for s in r.destSet:
+                        print("q", r, s, q_l[(r,s)])
+                
+                for a in self.network.links:
+                    print("x", a, x_l[a], x_f[a])
+                '''
+                
+                ll_f = self.calcLLobj(x_f)
+                #print("calc ll f", ll_f)
+                
+                ll_f_lb = self.network.getDualBeckmannOFV()
+                #print("calc ll f", ll_f)
+                
+                
+                if self.params.PRINT_BB_INFO:
+                    print("rmp obj ", obj_l, self.calcOFV(x_l, q_l), self.calcOFV(x_f, q_l), "from x", self.calcOFV_x(x_f), "from q", self.calcOFV_q(q_l))
+                    print("ll obj from rmp ", self.getRMP_ll_obj(), "rmp ll ub", self.getRMP_ll_ub(), "actual rmp ll", ll_l, "TAP", ll_f)
+                    #self.network.checkDualBeckmann()
+                
+                #self.printSolution(x_l, q_l, y_l)
+    
+                
+                
+                
+                ll_gap = (ll_l - ll_f_lb) / ll_f_lb
+                
+                print("ll ofv", ll_l, ll_f, ll_f_lb)
+                
+                
+                
+                
+                if ll_gap < self.params.ll_tol:
+                    obj_f = obj_l
+                
+                node_ub = min(node_ub, obj_f)
+                
+                if self.ub > obj_f:
+                    self.ub = obj_f
+                    self.best_x = x_f
+                    self.best_q = q_l
+                    
+                    
+                if best_ub > obj_f:
+                    best_ub = obj_f
             
             elapsed = time.time() - starttime
             if lb > 0:
@@ -511,19 +517,19 @@ class OA_elastic_CG:
             '''
  
             if gap < min_gap:
-                if self.params.PRINT_BB_INFO:
-                    print("end by low gap", gap, self.ub, lb)
+                #if self.params.PRINT_BB_INFO:
+                print("end by low gap", gap, self.ub, lb)
                 break
                 
             if ll_l <= ll_f:
-                if self.params.PRINT_BB_INFO:
-                    print("end by ll")
+                #if self.params.PRINT_BB_INFO:
+                print("end by ll")
                 break
                 
             # lb is worse than best ub
             if lb > self.ub:
-                if self.params.PRINT_BB_INFO:
-                    print("end b/c lb > ub")
+                #if self.params.PRINT_BB_INFO:
+                print("end b/c lb > ub")
                 break
                 
             
@@ -534,8 +540,8 @@ class OA_elastic_CG:
             
             # if everything is the same, then adding another cut is pointless
             if self.isSameSolution(last_x_l, x_l, last_q_l, q_l):
-                if self.params.PRINT_BB_INFO:
-                    print("end due to same sol")
+                #if self.params.PRINT_BB_INFO:
+                print("end due to same sol")
                 break
                 
             if elapsed > timelimit:
@@ -693,7 +699,7 @@ class OA_elastic_CG:
         ge = pow(g, 1/p)
         self.rmp.add_constraint(self.rmp.eta_oa[a] >= p / ((p+1) * ge) * pow(eta_p, (p+1)/p) + pow(eta_p, (p+1)/p - 1) / ge * (self.rmp.eta[a] - eta_p))
         
-    def addCuts(self, x_l, x_f, q_l, eta_l):
+    def addCuts(self, x_l, q_l, eta_l):
         for a in self.network.links:
             
            

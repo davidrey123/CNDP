@@ -57,7 +57,7 @@ def main():
 	network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 	y = network.initCalcY()
 	#network.tapas("UE", y)
-	#network.generateScenario("40_10_10", 0.4, 0.1, 0.1)
+	#network.generateScenario("40_5_5_1", 0.4, 0.05, 0.05)
 
 	#print("starting tapas")
 
