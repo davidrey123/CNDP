@@ -43,7 +43,9 @@ def main():
 	if net == "Anaheim":
 		ins = 'A_CNDP_30_1'
 	
-	
+	if net == "BerlinMitteCenter":
+		ins = 'BMC_CNDP_30_1'
+		
 
 	b_prop = 0.5
 	scal_flow = {'SiouxFalls':1e-2,'EasternMassachusetts':1e-3,'BerlinMitteCenter':1e-3,'Anaheim':1e-3,'Barcelona':1e-3, 'Braess':1, 'HarkerFriesz':1, 'NguyenDupuis':1}
@@ -56,8 +58,8 @@ def main():
 
 	network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 	y = network.initCalcY()
-	#network.tapas("UE", y)
-	#network.generateScenario("40_5_5_1", 0.4, 0.05, 0.05)
+	network.tapas("UE", y)
+	network.generateScenario("40_10_10_1", 0.4, 0.1, 0.1)
 
 	#print("starting tapas")
 
