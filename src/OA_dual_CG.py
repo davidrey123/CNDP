@@ -27,6 +27,8 @@ class OA_elastic_CG:
         self.q_target = dict()
         
     
+        self.time_cplex = 0
+        self.time_tap = 0
         
         
         
@@ -919,6 +921,8 @@ class OA_elastic_CG:
         self.rmp.solve(log_output=False)
         t_solve = time.time() - t_solve
         
+        self.time_cplex += t_solve
+        
         status = self.rmp.solve_details.status
         if status == 'infeasible' or status == 'integer infeasible':
             print(status)
@@ -969,8 +973,14 @@ class OA_elastic_CG:
                 r.demand[s] = q[(r,s)]
                 
                 
-            
+        t_solve = time.time()
         self.network.tapas("UE", None)
+        
+        t_solve = time.time() - t_solve
+        
+        self.time_tap += t_solve
+        
+        
         xhat = {a:a.x for a in self.network.links}
         obj_f = self.calcOFV(xhat, q)
         
