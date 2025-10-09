@@ -136,7 +136,7 @@ class OA_elastic_CG:
         self.t_init = time.time()
         self.initRMP()
         self.t_init = time.time() - self.t_init
-        print("init time", t_init)
+        print("init time", self.t_init)
 
         
         self.ub = 1e15
