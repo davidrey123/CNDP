@@ -699,11 +699,12 @@ class OA_elastic_CG:
     def addOACut_eta(self, a, eta_p):
         g = a.getConst()
         p = a.beta
+        ge = pow(g, 1/p)
         
-        
-        if g > 1e-4:
-            ge = pow(g, 1/p)
+        if ge > 0:
             self.rmp.add_constraint(self.rmp.eta_oa[a] >= p / ((p+1) * ge) * pow(eta_p, (p+1)/p) + pow(eta_p, (p+1)/p - 1) / ge * (self.rmp.eta[a] - eta_p))
+        #else:
+        #    print("ge 0", a)
         
     def addCuts(self, x_l, q_l, eta_l):
         for a in self.network.links:
@@ -832,9 +833,14 @@ class OA_elastic_CG:
         
         self.rmp.eta_oa = {a: self.rmp.continuous_var(lb = 0) for a in self.network.links}
         
+        
         for a in self.network.links:
-            if a.getConst() < 1e-4:
+            g = a.getConst()
+            p = a.beta
+            ge = pow(g, 1/p)
+            if ge == 0:
                 self.rmp.add_constraint(self.rmp.eta_oa[a] == 0)
+        
         
         self.rmp.beta = {a:self.rmp.continuous_var(lb=0) for a in self.network.links}
         
