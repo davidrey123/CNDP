@@ -102,6 +102,7 @@ class OA_elastic_CG:
         self.mu_lb = dict()
         self.mu_ub = dict()
         
+        self.num_oa_cuts = 0
         self.oacut_x = dict()
         self.oacut_eta = dict()
         self.oacut_q = dict()
@@ -160,7 +161,7 @@ class OA_elastic_CG:
         max_iter = 100
         iter = 0
         
-        print("iter", "global_lb", "best ub", "local_lb", "local_ub", "gap", "elapsed_time", "local ll gap", "global ll gap")
+        print("iter", "global_lb", "best ub", "local_lb", "local_ub", "gap", "elapsed_time", "local ll gap", "global ll gap", "num_oa_cuts")
         
         while len(bb_nodes) > 0 and iter < max_iter:
             
@@ -247,7 +248,7 @@ class OA_elastic_CG:
 
             elapsed_time = time.time() - starttime
 
-            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{local_ub:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}", ll_gap, global_ll_gap)
+            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{local_ub:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}", ll_gap, global_ll_gap, self.num_oa_cuts)
             
             
 
@@ -695,6 +696,7 @@ class OA_elastic_CG:
      
     def addOACut_x(self, a, x_l, idx):
         self.rmp.add_constraint(self.rmp.beta[a] >= a.getPrimitiveTravelTime(x_l) + (self.rmp.x[a] - x_l) * a.getTravelTime(x_l, self.network.type), ctname="oa_beta_"+str(idx)+"-"+str(a))
+        self.num_oa_cuts += 1
         
     def addOACut_eta(self, a, eta_p):
         g = a.getConst()
@@ -703,6 +705,7 @@ class OA_elastic_CG:
         
         if ge > 0:
             self.rmp.add_constraint(self.rmp.eta_oa[a] >= p / ((p+1) * ge) * pow(eta_p, (p+1)/p) + pow(eta_p, (p+1)/p - 1) / ge * (self.rmp.eta[a] - eta_p))
+            self.num_oa_cuts += 1
         #else:
         #    print("ge 0", a)
         

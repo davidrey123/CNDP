@@ -861,7 +861,9 @@ class Network:
             g = a.getConst()
             p = a.beta
             ge = pow(g, 1/p)
-            eta_term += p / ((p+1) * ge) * pow(eta[a], (p+1)/p)
+            
+            if ge > 0:
+                eta_term += p / ((p+1) * ge) * pow(eta[a], (p+1)/p)
             
         return tau_term - eta_term
 
