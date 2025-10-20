@@ -846,7 +846,8 @@ class Network:
             eta[a] = 0
             
             for r in self.origins:
-                eta[a] = max(eta[a], tau[(r, a.end)] - tau[(r, a.start)] - a.t_ff)
+                if tau[(r, a.end)] < 1e5:
+                    eta[a] = max(eta[a], tau[(r, a.end)] - tau[(r, a.start)] - a.t_ff)
                 
         
         tau_term = 0
@@ -862,9 +863,12 @@ class Network:
             p = a.beta
             ge = pow(g, 1/p)
             
+            
             if ge > 0:
                 eta_term += p / ((p+1) * ge) * pow(eta[a], (p+1)/p)
-            
+        
+        print(tau_term, eta_term)
+        
         return tau_term - eta_term
 
 

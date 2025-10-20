@@ -8,7 +8,7 @@ from docplex.mp.model import Model
 import math
 
 
-class OA_elastic_CG:
+class OA_dual_CG:
     
     def __init__(self, network, useCG, obj_weight, scenario):
         self.network = network
@@ -131,7 +131,7 @@ class OA_elastic_CG:
         
     
     def solve(self):
-        timelimit = 14400
+        timelimit = 144000
         starttime = time.time()
         
         self.t_init = time.time()
@@ -152,7 +152,7 @@ class OA_elastic_CG:
         
         bb_nodes.append(root)
         
-        max_node_iter = 20
+        max_node_iter = 40
         min_gap = 1e-2
 
         global_lb = 0
@@ -264,12 +264,14 @@ class OA_elastic_CG:
                     exit()
                 
 
-            if gap < min_gap:
-                if gap < 0:
-                    print(len(bb_nodes))
+            if gap > 0 and gap < min_gap:
+                if self.network.params.PRINT_BB_INFO:
+                    print("break main loop from low gap")
                 break
 
             if elapsed_time > timelimit:
+                if self.network.params.PRINT_BB_INFO:
+                    print("break main loop from time limit")
                 break
 
             if local_lb is not None and local_lb <= self.ub:
@@ -310,9 +312,11 @@ class OA_elastic_CG:
                 #if status == "end-ll":
                 #    branch = False
                
+                branch = True
 
                 if branch:
-                    print("branching")
+                    if self.network.params.PRINT_BB_INFO:
+                        print("branching")
                     
                     q_lb_1 = bb_node.q_lb.copy()
                     q_lb_2 = bb_node.q_lb.copy()
@@ -397,6 +401,9 @@ class OA_elastic_CG:
         
         node_ub = 1e15
         
+        
+        
+        
         while gap > cutoff and iteration < max_iter:
             iteration += 1
             
@@ -476,12 +483,13 @@ class OA_elastic_CG:
                 
                 
                 
-                if ll_gap < self.params.ll_tol:
+                if ll_f_lb > 0 and ll_gap < self.params.ll_tol:
                     obj_f = obj_l
                 
                 node_ub = min(node_ub, obj_f)
                 
                 if self.ub > obj_f:
+                    print("updating ub with obj_f", obj_f)
                     self.ub = obj_f
                     self.best_x = x_f
                     self.best_q = q_l
@@ -512,35 +520,38 @@ class OA_elastic_CG:
                     
                 
 
-            '''
+            
             if ll_gap < self.params.ll_tol:
                 if self.params.PRINT_BB_INFO:
                     print("end by low ll gap", gap, self.ub, lb)
 
                 return "end-ll", lb, node_ub, ll_gap
-            '''
+            
  
-            if gap < min_gap:
+            if gap > 0 and gap < min_gap:
                 if self.params.PRINT_BB_INFO:
                     print("end by low gap", gap, self.ub, lb)
                 break
-                
+            
+
             if ll_l <= ll_f:
                 if self.params.PRINT_BB_INFO:
                     print("end by ll")
                 break
-                
+   
             # lb is worse than best ub
+            
+            
             if lb > self.ub:
                 if self.params.PRINT_BB_INFO:
                     print("end b/c lb > ub")
                 break
-                
+ 
             
                 
             # no improvement due to weak vf cut
-            #if gap == last_gap:
-            #    break
+            if gap == last_gap:
+                break
             
             # if everything is the same, then adding another cut is pointless
             if self.isSameSolution(last_x_l, x_l, last_q_l, q_l):
