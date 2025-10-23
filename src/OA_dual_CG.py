@@ -152,7 +152,7 @@ class OA_dual_CG:
         
         bb_nodes.append(root)
         
-        max_node_iter = 40
+        max_node_iter = 20
         min_gap = 1e-2
 
         global_lb = 0
@@ -205,7 +205,10 @@ class OA_dual_CG:
 
                     #print("\t\t\t", n.q_lb)
                     #print("\t\t\t", n.q_ub)
-                    
+             
+            if len(bb_nodes) == 0:
+                print("break b/c no nodes")
+                break       
                     
             bb_node = bb_nodes.pop(idx)
             
@@ -405,6 +408,8 @@ class OA_dual_CG:
         
         
         while gap > cutoff and iteration < max_iter:
+            
+            #print("check ", iteration, max_iter)
             iteration += 1
             
             
@@ -423,8 +428,8 @@ class OA_dual_CG:
             
             
             if status == 'infeasible':
-                if self.network.params.PRINT_BB_BASIC:
-                    print(status)
+                #if self.network.params.PRINT_BB_BASIC:
+                print(status)
 
                 return status, None, None, 1e15
 
@@ -522,44 +527,46 @@ class OA_dual_CG:
 
             
             if ll_gap < self.params.ll_tol:
-                if self.params.PRINT_BB_INFO:
-                    print("end by low ll gap", gap, self.ub, lb)
+                #if self.params.PRINT_BB_INFO:
+                print("end by low ll gap", gap, self.ub, lb)
 
                 return "end-ll", lb, node_ub, ll_gap
             
  
             if gap > 0 and gap < min_gap:
-                if self.params.PRINT_BB_INFO:
-                    print("end by low gap", gap, self.ub, lb)
+                # if self.params.PRINT_BB_INFO:
+                print("end by low gap", gap, self.ub, lb)
                 break
             
 
             if ll_l <= ll_f:
-                if self.params.PRINT_BB_INFO:
-                    print("end by ll")
+                #if self.params.PRINT_BB_INFO:
+                print("end by ll")
                 break
    
             # lb is worse than best ub
             
             
             if lb > self.ub:
-                if self.params.PRINT_BB_INFO:
-                    print("end b/c lb > ub")
+                #if self.params.PRINT_BB_INFO:
+                print("end b/c lb > ub")
                 break
  
             
                 
             # no improvement due to weak vf cut
-            if gap == last_gap:
-                break
+            #if gap == last_gap:
+            #    print("end by same gap")
+            #    break
             
             # if everything is the same, then adding another cut is pointless
             if self.isSameSolution(last_x_l, x_l, last_q_l, q_l):
-                if self.params.PRINT_BB_INFO:
-                    print("end due to same sol")
+                #if self.params.PRINT_BB_INFO:
+                print("end due to same sol")
                 break
                 
             if elapsed > timelimit:
+                print("end due to time limit")
                 break
                 
           
@@ -756,13 +763,13 @@ class OA_dual_CG:
         self.network.tapas("UE", None)
         
         for r in self.network.origins:
-            self.network.dijkstras(r, "UE")
+            self.network.dijkstras(r, "ff")
             for s in r.destSet:
                 path = self.network.trace(r, s)
                 
                 cost = 0
                 for a in path.links:
-                    cost += a.getTravelTime(a.x, "UE")
+                    cost += a.getTravelTime(a.x, "ff")
                 output[(r,s)] = cost
                 
         return output
@@ -800,7 +807,7 @@ class OA_dual_CG:
                 mu_lb = self.mu_lb[(r,s)]
 
                 #print("\t", "mccormick", (r,s), self.rmp.q[(r,s)].lb, self.rmp.q[(r,s)].ub, self.mu_lb[(r,s)], self.mu_ub[(r,s)])
-                self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * mu_lb - self.rmp.q[(r,s)].ub * mu_lb
+                #self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * mu_lb - self.rmp.q[(r,s)].ub * mu_lb
                 self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * mu_ub - self.rmp.q[(r,s)].lb * mu_ub
         
         
