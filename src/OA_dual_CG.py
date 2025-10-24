@@ -100,7 +100,7 @@ class OA_dual_CG:
         self.q_lb = dict()
         self.q_ub = dict()
         self.mu_lb = dict()
-        self.mu_ub = dict()
+        #self.mu_ub = dict()
         
         self.num_oa_cuts = 0
         self.oacut_x = dict()
@@ -147,7 +147,7 @@ class OA_dual_CG:
         
         
         
-        root = BB_node.BB_node(self.q_lb.copy(), self.q_ub.copy(), lb, 1e15, 1e15, self.mu_lb, self.mu_ub)
+        root = BB_node.BB_node(self.q_lb.copy(), self.q_ub.copy(), lb, 1e15, 1e15, self.mu_lb, self.mu_lb)
         
         
         bb_nodes.append(root)
@@ -164,9 +164,6 @@ class OA_dual_CG:
         print("iter", "global_lb", "best ub", "local_lb", "local_ub", "gap", "elapsed_time", "local ll gap", "global ll gap", "num_oa_cuts")
         
         while len(bb_nodes) > 0 and iter < max_iter:
-            
-            
-            
             
             
             # node selection logic
@@ -334,8 +331,10 @@ class OA_dual_CG:
                     q_lb_2[worst] = mid
                     q_ub_1[worst] = mid
 
-                    mu_ub_1 = self.calcMuBounds(q_ub_1)
-                    mu_lb_2 = self.calcMuBounds(q_lb_2)
+                    #mu_ub_1 = self.calcMuBounds(q_ub_1)
+                    #mu_lb_2 = self.calcMuBounds(q_lb_2)
+                    mu_lb_2 = self.mu_lb
+                    mu_ub_1 = self.mu_lb
 
                     left = BB_node.BB_node(q_lb_1, q_ub_1, local_lb, ll_gap, local_ub, bb_node.mu_lb, mu_ub_1)
                     right = BB_node.BB_node(q_lb_2, q_ub_2, local_lb, ll_gap, local_ub, mu_lb_2, bb_node.mu_ub)
@@ -373,7 +372,7 @@ class OA_dual_CG:
         
         
         self.mu_lb = bbnode.mu_lb
-        self.mu_ub = bbnode.mu_ub
+        #self.mu_ub = bbnode.mu_ub
        
         min_gap = 1e-2
             
@@ -448,10 +447,15 @@ class OA_dual_CG:
             
             
             eta_l = {a : self.rmp.eta[a].solution_value for a in self.network.links}
+            tau_l = {(r,s): self.rmp.pi[(r,s)].solution_value for r in self.network.origins for s in r.getDests()}
             self.addCuts(x_l, q_l, eta_l)
             
-            if iteration > max_iter/2.0:
-
+            dual_lb = self.calcLLobjDual(q_l, eta_l, tau_l)
+            
+            
+            #if iteration > max_iter/2.0:
+            if dual_lb > 0 and (ll_l - dual_lb) / dual_lb < self.params.ll_tol:
+                
                 x_f, obj_f = self.TAP(q_l)
                 
                 
@@ -483,7 +487,7 @@ class OA_dual_CG:
                 
                 ll_gap = (ll_l - ll_f_lb) / ll_f_lb
                 
-                print("ll ofv", ll_l, ll_f, ll_f_lb)
+                print("ll ofv", ll_l, ll_f, ll_f_lb, dual_lb)
                 
                 
                 
@@ -610,7 +614,7 @@ class OA_dual_CG:
                 #self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)] * self.mu_ub[(r,s)] + self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] - self.rmp.q[(r,s)].lb * self.mu_ub[(r,s)]
                 
                 mccormick1 = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)].solution_value + self.rmp.q[(r,s)].solution_value * self.mu_lb[(r,s)] - self.rmp.q[(r,s)].ub * self.mu_lb[(r,s)]
-                mccormick2 = self.rmp.q[(r,s)].solution_value * self.mu_ub[(r,s)] + self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)].solution_value - self.rmp.q[(r,s)].lb * self.mu_ub[(r,s)]
+                #mccormick2 = self.rmp.q[(r,s)].solution_value * self.mu_ub[(r,s)] + self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)].solution_value - self.rmp.q[(r,s)].lb * self.mu_ub[(r,s)]
                 #print("\t", "mccormick ub", (r,s), self.rmp.q[(r,s)].lb, self.rmp.q[(r,s)].ub, self.mu_lb[(r,s)], self.mu_ub[(r,s)])
                 #print("\t\tbound 1", mccormick1, self.vfcut_q_ub[(r,s)].rhs.solution_value)
                 #print("\t\tbound 2", mccormick2, self.vfcut_pi_ub[(r,s)].rhs.solution_value)
@@ -619,7 +623,8 @@ class OA_dual_CG:
                 #print("\tmccormick bound vs value", min(mccormick1, mccormick2), self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value)
         
                 #total += self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value
-                total += min(mccormick1, mccormick2)
+                #total += min(mccormick1, mccormick2)
+                total += mccormick1
                 
                 gap += min(mccormick1, mccormick2) - self.rmp.q[(r,s)].solution_value * self.rmp.pi[(r,s)].solution_value
 
@@ -673,6 +678,26 @@ class OA_dual_CG:
     def calcOFV(self, x, q):
         return self.calcOFV_x(x) + self.calcOFV_q(q)
 
+    def calcLLobjDual(self, q, eta, tau):
+        tau_term = 0
+        for r in self.network.origins:
+            for s in r.getDests():
+                tau_term += q[(r,s)] * tau[(r,s)]
+        
+        eta_term = 0
+             
+        for a in self.network.links:
+            g = a.getConst()
+            p = a.beta
+            ge = pow(g, 1/p)
+            
+            
+            if ge > 0:
+                eta_term += p / ((p+1) * ge) * pow(eta[a], (p+1)/p)
+
+        return tau_term - eta_term
+        
+        
     def calcLLobj(self, xhat):
         total = 0
         
@@ -754,24 +779,36 @@ class OA_dual_CG:
                 self.addOACut_eta(a, eta_l[a])
         
     def calcMuBounds(self, q):
+        
         output = dict()
         
         for r in self.network.origins:
             for s in r.getDests():
                 r.demand[s] = q[(r,s)]
             
-        self.network.tapas("UE", None)
+        #self.network.tapas("UE", None)
+        
         
         for r in self.network.origins:
             self.network.dijkstras(r, "ff")
             for s in r.destSet:
                 path = self.network.trace(r, s)
+
+                output[(r,s)] = s.cost
+        
+        '''
+        for r in self.network.origins:
+            for s in r.destSet:
+                self.network.dijkstras(r, "UE")
                 
-                cost = 0
-                for a in path.links:
-                    cost += a.getTravelTime(a.x, "ff")
-                output[(r,s)] = cost
+                output[(r,s)] = s.cost
                 
+                self.network.dijkstras(r, "ff")
+                
+                print((r, s), output[(r,s)], s.cost)
+        '''
+        
+                      
         return output
         
     def calcTTs(self, q):
@@ -793,7 +830,7 @@ class OA_dual_CG:
     def updateQbounds(self, q_lb, q_ub, mu_lb, mu_ub):
         
         self.mu_lb = mu_lb
-        self.mu_ub = mu_ub
+        #self.mu_ub = mu_ub
         self.q_lb = q_lb
         self.q_ub = q_ub
         
@@ -803,12 +840,12 @@ class OA_dual_CG:
                 self.rmp.q[(r,s)].lb = q_lb[(r,s)]
                 self.rmp.q[(r,s)].ub = q_ub[(r,s)]
                 
-                mu_ub = self.mu_ub[(r,s)]
+                #mu_ub = self.mu_ub[(r,s)]
                 mu_lb = self.mu_lb[(r,s)]
 
                 #print("\t", "mccormick", (r,s), self.rmp.q[(r,s)].lb, self.rmp.q[(r,s)].ub, self.mu_lb[(r,s)], self.mu_ub[(r,s)])
-                #self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * mu_lb - self.rmp.q[(r,s)].ub * mu_lb
-                self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * mu_ub - self.rmp.q[(r,s)].lb * mu_ub
+                self.vfcut_q_ub[(r,s)].rhs = self.rmp.q[(r,s)].ub * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * mu_lb - self.rmp.q[(r,s)].ub * mu_lb
+                #self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * mu_ub - self.rmp.q[(r,s)].lb * mu_ub
         
         
     def initRMP(self):   
@@ -838,7 +875,7 @@ class OA_dual_CG:
         
         
         self.mu_lb = self.calcMuBounds(self.q_lb)
-        self.mu_ub = self.calcMuBounds(self.q_ub)
+        #self.mu_ub = self.calcMuBounds(self.q_ub)
                 
 
         
@@ -907,7 +944,7 @@ class OA_dual_CG:
             for s in r.destSet:
                 #bounds are set in updateqbounds()
                 self.vfcut_q_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= 1e15)
-                self.vfcut_pi_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= 1e15)
+                #self.vfcut_pi_ub[(r,s)] = self.rmp.add_constraint(self.rmp.vf_ub[(r,s)] <= 1e15)
         
         
         # avoid the x=0 solution
@@ -979,7 +1016,7 @@ class OA_dual_CG:
         print("pi")
         for r in self.network.origins:
             for s in r.destSet:
-                print((r,s), self.rmp.pi[(r,s)].solution_value, self.mu_ub[(r,s)])
+                print((r,s), self.rmp.pi[(r,s)].solution_value, self.mu_lb[(r,s)])
         
         print("eta")
         for a in self.network.links:
