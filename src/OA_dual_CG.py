@@ -14,6 +14,7 @@ class OA_dual_CG:
         self.network = network
         
         self.useCG = useCG
+        self.ntap = 0
         
         self.obj_weight = obj_weight
         
@@ -49,7 +50,7 @@ class OA_dual_CG:
                 r = int(data[0])
                 s = int(data[1])
                 q = float(data[2])
-                self.q_target[(self.network.findNode(r), self.network.findNode(s))] = q   
+                self.q_target[(self.network.findNode(r), self.network.findNode(s))] = q
 
 
 
@@ -86,7 +87,7 @@ class OA_dual_CG:
                 r = int(data[0])
                 s = int(data[1])
                 q = float(data[2])
-                self.q_base[(self.network.findNode(r), self.network.findNode(s))] = q  
+                self.q_base[(self.network.findNode(r), self.network.findNode(s))] = q
 
        '''
         
@@ -121,6 +122,7 @@ class OA_dual_CG:
         
         
         self.ub = 1e15
+        self.global_ll_gap = 1e15
         self.best_q = dict()
         self.best_x = dict()
         
@@ -134,11 +136,12 @@ class OA_dual_CG:
         timelimit = 144000
         starttime = time.time()
         
+        elapsed_time = 0
         self.t_init = time.time()
         self.initRMP()
         self.t_init = time.time() - self.t_init
         print("init time", self.t_init)
-
+        
         
         self.ub = 1e15
         lb = 0
@@ -152,16 +155,21 @@ class OA_dual_CG:
         
         bb_nodes.append(root)
         
-        max_node_iter = 20
+        max_node_iter = 40
         min_gap = 1e-2
 
         global_lb = 0
         global_ll_gap = 1e15
+        
+        gap = 1e15
+        ll_gap = 1e15
 
         max_iter = 100
         iter = 0
         
-        print("iter", "global_lb", "best ub", "local_lb", "local_ub", "gap", "elapsed_time", "local ll gap", "global ll gap", "num_oa_cuts")
+        self.infeas = False
+        
+        print("iter", "global_lb", "best ub", "local_lb", "local_ub", "gap", "elapsed_time", "local ll gap", "global ll gap", "num_oa_cuts", "tap time", "cplex time")
         
         while len(bb_nodes) > 0 and iter < max_iter:
             
@@ -205,7 +213,7 @@ class OA_dual_CG:
              
             if len(bb_nodes) == 0:
                 print("break b/c no nodes")
-                break       
+                break
                     
             bb_node = bb_nodes.pop(idx)
             
@@ -228,16 +236,16 @@ class OA_dual_CG:
             if status == "infeasible":
                 if self.network.params.PRINT_BB_INFO:
                     print(iter, "solved node --- fathom infeasible")
+                    if iter == 1:
+                        self.infeas = True
                 continue
                  
             global_lb = local_lb
             
-            global_ll_gap = ll_gap
 
             if len(bb_nodes) > 0:
                 for n in bb_nodes:
                     global_lb = min(global_lb, n.lb)
-                    global_ll_gap = max(global_ll_gap, n.ll_gap)
 
             global_lb = max(0, global_lb) # numerical errors
             gap = min(1, self.ub)
@@ -248,7 +256,7 @@ class OA_dual_CG:
 
             elapsed_time = time.time() - starttime
 
-            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{local_ub:.3f}", f"{gap:.3f}", f"{elapsed_time:.2f}", ll_gap, global_ll_gap, self.num_oa_cuts)
+            print(iter, f"{global_lb:.3f}", f"{self.ub:.3f}", f"{local_lb:.3f}", f"{local_ub:.3f}", f"{gap:.4f}", f"{elapsed_time:.1f}", f"{ll_gap:.4f}", f"{self.global_ll_gap:.4f}", self.num_oa_cuts, f"{self.time_tap:.1f}", f"{self.time_cplex:.1f}")
             
             
 
@@ -261,17 +269,17 @@ class OA_dual_CG:
                 
                 if self.params.VALIDATE_BASE and not self.validateFeasible():
                     print("TARGET INFEAS")
-                    exit()
+                    break
                 
 
             if gap > 0 and gap < min_gap:
-                if self.network.params.PRINT_BB_INFO:
-                    print("break main loop from low gap")
+                #if self.network.params.PRINT_BB_INFO:
+                print("break main loop from low gap")
                 break
 
             if elapsed_time > timelimit:
-                if self.network.params.PRINT_BB_INFO:
-                    print("break main loop from time limit")
+                #if self.network.params.PRINT_BB_INFO:
+                print("break main loop from time limit")
                 break
 
             if local_lb is not None and local_lb <= self.ub:
@@ -298,7 +306,7 @@ class OA_dual_CG:
                     
                     for r in self.network.origins:
                         for s in r.getDests():
-                            gap = self.rmp.q[(r,s)].ub - self.rmp.q[(r,s)].lb 
+                            gap = self.rmp.q[(r,s)].ub - self.rmp.q[(r,s)].lb
 
                             if gap > worst_gap:
                                 worst_gap = gap
@@ -363,6 +371,11 @@ class OA_dual_CG:
             
         if self.params.PRINT_SOL:
             self.printSolution(self.best_x, self.best_q);
+            
+        if self.infeas == True:
+            return -1, 0, 0, 0, 0, 0, 0, 0
+        else:
+            return iter, self.ub, gap, self.global_ll_gap, elapsed_time, self.time_tap, self.time_cplex, self.num_oa_cuts
         
   
     def solveNode(self, bbnode, max_iter, timelimit, starttime):
@@ -502,6 +515,7 @@ class OA_dual_CG:
                     self.ub = obj_f
                     self.best_x = x_f
                     self.best_q = q_l
+                    self.global_ll_gap = ll_gap
                     
                     
                 if best_ub > obj_f:
@@ -668,7 +682,7 @@ class OA_dual_CG:
         
 
     def calcOFV_x(self, x):
-        return (1-self.obj_weight) * sum((x[a] - self.x_target[a]) ** 2 for a in self.network.links if a in self.x_target) 
+        return (1-self.obj_weight) * sum((x[a] - self.x_target[a]) ** 2 for a in self.network.links if a in self.x_target)
         
     def calcOFV_q(self, q):
         return self.obj_weight * sum( (q[(r,s)] - self.q_target[(r,s)]) ** 2 for r in self.network.origins for s in r.getDests() if (r,s) in self.q_target)
@@ -693,7 +707,7 @@ class OA_dual_CG:
             
             
             if ge > 0:
-                eta_term += p / ((p+1) * ge) * pow(eta[a], (p+1)/p)
+                eta_term += p / ((p+1) * ge) * pow(max(0, eta[a]), (p+1)/p)
 
         return tau_term - eta_term
         
@@ -848,7 +862,7 @@ class OA_dual_CG:
                 #self.vfcut_pi_ub[(r,s)].rhs = self.rmp.q[(r,s)].lb * self.rmp.pi[(r,s)] + self.rmp.q[(r,s)] * mu_ub - self.rmp.q[(r,s)].lb * mu_ub
         
         
-    def initRMP(self):   
+    def initRMP(self):
         self.rmp = Model()
         
         self.cut_idx = 0
@@ -870,8 +884,9 @@ class OA_dual_CG:
                     self.q_lb[(r,s)] = self.q_target[(r,s)]*0.999
                     self.q_ub[(r,s)] = self.q_target[(r,s)]*1.001
         
-        self.rmp.parameters.read.scale = -1
-
+        self.rmp.parameters.read.scale = 1
+        self.rmp.parameters.emphasis.numerical = 1
+        
         
         
         self.mu_lb = self.calcMuBounds(self.q_lb)
@@ -966,11 +981,11 @@ class OA_dual_CG:
             self.rmp.add_constraint(sum(self.rmp.xc[(a,r)] for r in self.network.origins) == self.rmp.x[a], ctname="xc-eq_"+str(a)+"_"+str(r))
 
 
-            for i in self.network.nodes:                    
-                for r in self.network.origins:            
+            for i in self.network.nodes:
+                for r in self.network.origins:
 
                     if i.id == r.id:
-                        dem = - sum(self.rmp.q[(r,s)] for s in r.getDests())                
+                        dem = - sum(self.rmp.q[(r,s)] for s in r.getDests())
                     elif isinstance(i, type(r)) == True and i in r.getDests():
                         dem = self.rmp.q[(r,i)]
                     else:
@@ -1023,7 +1038,7 @@ class OA_dual_CG:
             g = a.alpha / pow(a.C, a.beta)
             p = a.beta
             print(a, self.rmp.eta[a].solution_value, p / (g * (p+1)) * self.rmp.eta[a].solution_value, self.rmp.eta_oa[a].solution_value)
-         '''   
+         '''
             
         return "solved", x_l, q_l, obj_l
         
@@ -1040,6 +1055,8 @@ class OA_dual_CG:
         
     def TAP(self, q):
     
+        self.ntap += 1
+        
         for r in self.network.origins:
             for s in r.getDests():
                 r.demand[s] = q[(r,s)]
@@ -1086,7 +1103,7 @@ class OA_dual_CG:
             for s in self.paths[r].keys():
                 for p in self.paths[r][s]:
                     all_paths.append(p)
-        return all_paths  
+        return all_paths
             
             
         

@@ -58,11 +58,20 @@ def main():
 
 	network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net])
 	y = network.initCalcY()
-	#network.tapas("UE", y)
+	
+	
+	network.tapas("UE", y)
 	#print("beckmann", network.getBeckmannOFV())
 	#print("dual", network.getDualBeckmannOFV())
-	#network.generateScenario("40_20_20_1", 0.4, 0.2, 0.2)
-
+	#network.generateScenario("40_10_10_2", 0.4, 0.1, 0.1)
+	network.generateScenario("20_20_20_2", 0.2, 0.2, 0.2)
+	#network.generateScenario("20_10_10_2", 0.2, 0.1, 0.1)
+	#network.generateScenario("20_10_10_1", 0.2, 0.1, 0.1)
+	#network.generateScenario("20_10_10_2", 0.2, 0.1, 0.1)
+	#network.generateScenario("20_10_10_3", 0.2, 0.1, 0.1)
+	
+	
+	
 	#print("starting tapas")
 
 	#network.tapas('UE', y)
@@ -79,7 +88,7 @@ def main():
 	test = OA_dual_CG.OA_dual_CG(network, False, 0.5, scenario)
 
 	#obj, tot_time, tap_time, iter, = test.solve()
-	test.solve()
+	#test.solve()
 	
 if __name__=="__main__":
     main()
