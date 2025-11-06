@@ -272,7 +272,7 @@ class OA_dual_CG:
                     break
                 
 
-            if gap > 0 and gap < min_gap:
+            if gap >= 0 and gap < min_gap:
                 #if self.network.params.PRINT_BB_INFO:
                 print("break main loop from low gap")
                 break
