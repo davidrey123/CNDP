@@ -45,8 +45,8 @@ inflate_costs = [
 yvarss = [
 [10,20],
 [10,30],
-[20,30, 60],
-[20,30, 60]
+[30, 60],
+[30, 60]
 ]
 
 #net = 'EasternMassachusetts'
@@ -67,7 +67,7 @@ scale_dem = 1
 
 
 
-for n in range (1, 4):
+for n in range (0, 4):
     net = nets[n]
     f = open("experiments_"+net+".txt", "w")
     

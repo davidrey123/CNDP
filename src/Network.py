@@ -31,10 +31,13 @@ class Network:
         
         if len(ins) == 0:
             ins = "net"
-            
-        self.readNetwork("data/"+name+"/"+ins+".txt",scal_time,scal_flow)
-        self.readTrips("data/"+name+"/trips.txt",scal_time,scal_flow,inflate_trips)
         
+        if name == "SiouxFalls2":
+            self.readNetwork2("data/"+name+"/net2.txt",scal_time,scal_flow)
+            self.readTrips2("data/"+name+"/demand2.txt",scal_time,scal_flow,inflate_trips)
+        else:
+            self.readNetwork("data/"+name+"/"+ins+".txt",scal_time,scal_flow)
+            self.readTrips("data/"+name+"/trips.txt",scal_time,scal_flow,inflate_trips)
         
         self.links1 = []
         
@@ -51,7 +54,7 @@ class Network:
         self.type = type
         
     # read file "/net.txt"
-    def readNetwork(self,netFile,scal_time,scal_flow):
+    def readNetwork2(self,netFile,scal_time,scal_flow):
         
         firstThruNode = 1
         numZones = 0
@@ -62,19 +65,10 @@ class Network:
 
         line = ""
         
-        while line.strip() != "<END OF METADATA>":
-            line = file.readline()
-            if "<NUMBER OF ZONES>" in line:
-                numZones = int(line[line.index('>') + 1:].strip())
-            elif "<NUMBER OF NODES>" in line:
-                numNodes = int(line[line.index('>') + 1:].strip())
-            elif "<NUMBER OF LINKS>" in line:
-                numLinks = int(line[line.index('>') + 1:].strip())
-            elif "<NUMBER OF NEW LINKS>" in line:
-                newLinks = int(line[line.index('>') + 1:].strip())
-            elif "<FIRST THRU NODE>" in line:
-                firstThruNode = int(line[line.index('>') + 1:].strip())
-
+        numZones = 24
+        numNodes = 24
+        numLinks = 76
+        
         for i in range(0, numZones):
             self.zones.append(Zone.Zone(i + 1))
 
@@ -99,20 +93,21 @@ class Network:
             line = file.readline().split()
             if len(line) == 0:
                 continue
-            start = self.nodes[int(line[0]) - 1]
-            end = self.nodes[int(line[1]) - 1]
-            C = float(line[2]) * scal_flow
+            start = self.nodes[int(line[1]) - 1]
+            end = self.nodes[int(line[2]) - 1]
+            C = float(line[5]) * scal_flow
             
 
 
-            t_ff = float(line[4]) * scal_time
-            alpha = float(line[5])
+            t_ff = float(line[3]) * scal_time
+            alpha = float(line[4])
             beta = float(line[6])
             
    
-            try:
-                cost = float(line[10])
-            except ValueError:
+            if len(line) > 7:
+                cost = float(line[7])
+                print(cost)
+            else:
                 cost = 0
                 
             #print(start, end, cost, line)
@@ -131,64 +126,36 @@ class Network:
         file.close()
 
 
-    def readTrips(self,tripsFile,scal_time,scal_flow,inflate_trips):
+    def readTrips2(self,tripsFile,scal_time,scal_flow,inflate_trips):
         
         file = open(tripsFile, "r")
         
         lines = file.readlines()
         
         line_idx = 0
-        
-        while lines[line_idx].strip() != "<END OF METADATA>":
-            line_idx += 1
-            
-        line_idx += 1
-        
-        while lines[line_idx].strip() == "":
-            line_idx += 1
+
             
         r = None
         
         idx = 0
         
-        splitted = lines[line_idx].split()
+        
         #print(splitted)
         
-        while len(lines) < line_idx or idx < len(splitted):
+        for i in range(1, 24):
+            splitted = lines[line_idx].split()
+            next = splitted[i-1]
+            
+            r = self.zones[i-1]
 
-            next = splitted[idx]
-
-            if next == "Origin":
-                
-                idx += 1
-                r = self.zones[int(splitted[idx]) - 1]
-
-            else:
-                s = self.zones[int(splitted[idx]) - 1]
-
-                #print(s)
-                idx += 2
-                next = splitted[idx]
-                d = float(next[0:len(next) - 1]) * scal_flow
-                d = d * inflate_trips
-                
+            for j in range(1, 24):
+                s = self.zones[j-1]
+                d = float(splitted[j-1])
                 
                 
                 r.addDemand(s, d)
                 self.TD += d
 
-            idx += 1
-
-            if idx >= len(splitted):
-                line_idx += 1
-                while line_idx < len(lines) and lines[line_idx].strip() == "":
-                    line_idx += 1
-                    
-                if line_idx < len(lines):
-                    line = lines[line_idx].strip()
-                    splitted = line.split()
-                    idx = 0
-            
         file.close()
         
         for r in self.zones:
@@ -763,3 +730,146 @@ class Network:
         print(tau_term, eta_term)
         
         return tau_term - eta_term
+    def readNetwork(self,netFile,scal_time,scal_flow):
+        
+        firstThruNode = 1
+        numZones = 0
+        numNodes = 0
+        numLinks = 0
+        newLinks = 0
+        file = open(netFile, "r")
+
+        line = ""
+        
+        while line.strip() != "<END OF METADATA>":
+            line = file.readline()
+            if "<NUMBER OF ZONES>" in line:
+                numZones = int(line[line.index('>') + 1:].strip())
+            elif "<NUMBER OF NODES>" in line:
+                numNodes = int(line[line.index('>') + 1:].strip())
+            elif "<NUMBER OF LINKS>" in line:
+                numLinks = int(line[line.index('>') + 1:].strip())
+            elif "<NUMBER OF NEW LINKS>" in line:
+                newLinks = int(line[line.index('>') + 1:].strip())
+            elif "<FIRST THRU NODE>" in line:
+                firstThruNode = int(line[line.index('>') + 1:].strip())
+
+        for i in range(0, numZones):
+            self.zones.append(Zone.Zone(i + 1))
+
+        for i in range(0, numNodes):
+            if i < numZones:
+                self.nodes.append(self.zones[i])
+                
+                if i + 1 < firstThruNode:
+                    self.zones[i].setThruNode(False)
+
+            else:
+                self.nodes.append(Node.Node(i + 1))
+
+        line = ""
+        id = 0
+        
+        print(numLinks)
+        while len(line) == 0:
+            line = file.readline().strip()
+
+        for i in range(0, numLinks + newLinks):
+            line = file.readline().split()
+            if len(line) == 0:
+                continue
+            start = self.nodes[int(line[0]) - 1]
+            end = self.nodes[int(line[1]) - 1]
+            C = float(line[2]) * scal_flow
+            
+
+
+            t_ff = float(line[4]) * scal_time
+            alpha = float(line[5])
+            beta = float(line[6])
+            
+   
+            try:
+                cost = float(line[10])
+            except ValueError:
+                cost = 0
+                
+            #print(start, end, cost, line)
+            
+            self.TC += cost
+            
+            link = Link.Link(id, start ,end, t_ff, C, alpha, beta, cost)
+            id = id +1
+            #print(start,end)
+            self.links.append(link)
+            #print(self.links)
+            
+            if i >= numLinks:
+                self.links2.append(link)
+            
+        file.close()
+
+
+    def readTrips(self,tripsFile,scal_time,scal_flow,inflate_trips):
+        
+        file = open(tripsFile, "r")
+        
+        lines = file.readlines()
+        
+        line_idx = 0
+        
+        while lines[line_idx].strip() != "<END OF METADATA>":
+            line_idx += 1
+            
+        line_idx += 1
+        
+        while lines[line_idx].strip() == "":
+            line_idx += 1
+            
+        r = None
+        
+        idx = 0
+        
+        splitted = lines[line_idx].split()
+        #print(splitted)
+        
+        while len(lines) < line_idx or idx < len(splitted):
+
+            next = splitted[idx]
+
+            if next == "Origin":
+                
+                idx += 1
+                r = self.zones[int(splitted[idx]) - 1]
+
+            else:
+                s = self.zones[int(splitted[idx]) - 1]
+
+                #print(s)
+                idx += 2
+                next = splitted[idx]
+                d = float(next[0:len(next) - 1]) * scal_flow
+                d = d * inflate_trips
+                
+                
+                
+                r.addDemand(s, d)
+                self.TD += d
+
+            idx += 1
+
+            if idx >= len(splitted):
+                line_idx += 1
+                while line_idx < len(lines) and lines[line_idx].strip() == "":
+                    line_idx += 1
+                    
+                if line_idx < len(lines):
+                    line = lines[line_idx].strip()
+                    splitted = line.split()
+                    idx = 0
+            
+        file.close()
+        
+        for r in self.zones:
+            if r.getProductions() > self.params.flow_epsilon:
+                self.origins.append(r)

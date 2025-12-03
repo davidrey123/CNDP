@@ -76,6 +76,8 @@ class OA_CNDP_CG_SB:
         
         gap = 1
         cutoff = self.params.min_CNDP_gap
+        
+        print("min gap", cutoff)
         self.tap_time = 0
         
         elapsed = 0
@@ -443,7 +445,7 @@ class OA_CNDP_CG_SB:
                 if (B_l - B_f)/B_f < self.params.min_CNDP_gap:
                     B_f = self.network.getDualBeckmannOFV()
                     
-                    print("check B", B_l, B_f)
+                    print("check B", B_l, B_f, (B_l - B_f)/B_f < self.params.min_CNDP_gap)
                     if (B_l - B_f)/B_f < self.params.min_CNDP_gap:
                         obj_f = obj_l
                         nobranch = True

@@ -2,7 +2,7 @@
 from src import Network
 from src import OA_CNDP
 from src import OA_CNDP_CG
-from src import HY_CNDP
+#from src import HY_CNDP
 from src import DuGP_CNDP
 from src import CNDP_MILP
 import math
@@ -75,8 +75,8 @@ if runOA:
     header1_oa_latex += "& \multicolumn{4}{|c|}{B cut} & \multicolumn{4}{|c|}{B cut, CG} & \multicolumn{4}{|c|}{link VF cut) & \multicolumn{4}{|c}{link VF cut, CG}"
 
     for j in range(0, 4):
-        header2_oa += "\t obj \t rt (s) \t TAP (s) \t iter." # for 4 variations: with and without CG; with and without link-based VF cuts 
-        header2_oa_latex += "& obj & rt (s) & TAP (s) & iter." 
+        header2_oa += "\t obj \t rt (s) \t TAP (s) \t iter." # for 4 variations: with and without CG; with and without link-based VF cuts
+        header2_oa_latex += "& obj & rt (s) & TAP (s) & iter."
         header0_oa_latex += "|cccc"
 
     header0_oa_latex += "}"
@@ -180,8 +180,8 @@ for i in range (1, 5):
         f_milp.flush()
         f_milp_latex.flush()
 
-if runOA:   
-    f_oa_latex.write("\\hline") 
+if runOA:
+    f_oa_latex.write("\\hline")
        
 if runMILP:
     f_milp_latex.write("\\hline")
@@ -258,9 +258,9 @@ for i in range (0, 5):
 
 
 if runOA:
-    f_oa_latex.write("\\bottomrule")  
+    f_oa_latex.write("\\bottomrule")
     f_oa.close()
-    f_oa_latex.close()  
+    f_oa_latex.close()
     
 if runMILP:
     f_milp_latex.write("\\bottomrule")

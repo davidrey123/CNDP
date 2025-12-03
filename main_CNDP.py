@@ -13,25 +13,25 @@ from decimal import Decimal
 #net = 'Braess'
 #ins = 'Braess_CNDP_1'
 
-net = 'SiouxFalls'
+net = 'SiouxFalls2'
 ins = 'SF_CNDP_20_2'
 
-net = 'EasternMassachusetts'
-ins = 'EM_CNDP_30_1'
+#net = 'EasternMassachusetts'
+#ins = 'EM_CNDP_30_1'
 
 #net = 'HarkerFriesz'
 #ins = 'HF_CNDP_1'
 
-#net = 'BerlinMitteCenter'
-#ins = 'BMC_CNDP_60_3'
+net = 'BerlinMitteCenter'
+ins = 'BMC_CNDP_60_1'
 
 #net = 'Anaheim'
 #ins = 'A_CNDP_30_1'
 
 scale_dem = 1
 b_prop = 0.5
-scal_flow = {'SiouxFalls':1e-3,'EasternMassachusetts':1e-3,'BerlinMitteCenter':1e-3,'Anaheim':1e-3,'Barcelona':1e-3, 'Braess':1, 'HarkerFriesz':1}
-inflate_trips = {'SiouxFalls':1,'EasternMassachusetts':4,'BerlinMitteCenter':2,'Anaheim':4,'Barcelona':2, 'Braess':1, 'HarkerFriesz':0.25}
+scal_flow = {'SiouxFalls':1e-3,'SiouxFalls2':1,'EasternMassachusetts':1e-3,'BerlinMitteCenter':1e-3,'Anaheim':1e-3,'Barcelona':1e-3, 'Braess':1, 'HarkerFriesz':1}
+inflate_trips = {'SiouxFalls':1,'SiouxFalls2':1,'EasternMassachusetts':4,'BerlinMitteCenter':2,'Anaheim':4,'Barcelona':2, 'Braess':1, 'HarkerFriesz':0.25}
 print(net,ins)
 
 inflate_cost = 1

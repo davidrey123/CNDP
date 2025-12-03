@@ -1,6 +1,6 @@
 INFTY = 1.0e9
 
-class Params:   
+class Params:
     
     def resetPAS(self):
         # if these are too large, then we avoid flow shifting on PAS
@@ -23,16 +23,16 @@ class Params:
         self.SP_tol = 1e-6
         
         #---TAP params
-        self.msa_max_iter = 500        
-        self.tapas_max_iter = 100 
-        self.min_gap = 1E-3
-        self.warmstart = True        
+        self.msa_max_iter = 500
+        self.tapas_max_iter = 100
+        self.min_gap = 1E-5
+        self.warmstart = True
         
         #---TAPAS params
         self.bush_gap = 1e-2
-        self.pas_cost_mu = 1e-2     
+        self.pas_cost_mu = 1e-2
         self.pas_cost_epsilon = 1e-2
-        self.pas_flow_mu = 1e-2       
+        self.pas_flow_mu = 1e-2
         self.line_search_gap = 1E-8
         
         self.resetPAS()
@@ -41,7 +41,7 @@ class Params:
         self.min_line_search_gap = 1E-8
         self.tapas_equilibrate_iter = 3
         
-        #---used within TAPAS don't change        
+        #---used within TAPAS don't change
         self.good_pas_cost_mu = 0
         self.good_pas_flow_mu = 0
         self.good_bush_gap = 0
@@ -55,7 +55,7 @@ class Params:
         #---BPC / BC params
         self.OAcut_tol = 0.05
         self.solveSO = False
-        self.min_gap_SO_OA_cuts = 1E-1 
+        self.min_gap_SO_OA_cuts = 1E-1
         self.runUEifCGIntegral = True
         self.useInterdictionCuts = True
         self.useValueFunctionCuts1 = False
@@ -64,7 +64,7 @@ class Params:
         self.initOAheuristic = 'LocalSearchKNP'
         #self.initOAheuristic = 'LocalSearchY1'
         
-        #---printing    
+        #---printing
         self.DEBUG_CHECKS = False
 
         self.PRINT_PAS_INFO = False
@@ -74,12 +74,12 @@ class Params:
         self.PRINT_TAP_ITER = False
 
         self.printBushEquilibrate = False
-        self.printReducedCosts = False        
+        self.printReducedCosts = False
         self.PRINT_PARAM_ADJ = False
         self.PRINT_PAS_DEBUG = False
         
         self.PRINT_BB_INFO = False #---prints detailed BB info
-        self.PRINT_BB_BASIC = False #---prints only basic BB info        
+        self.PRINT_BB_BASIC = False #---prints only basic BB info
         self.PRINT_BB_NODE_DETAIL = False
         self.PRINT_BB_NODE = False
 
@@ -87,7 +87,7 @@ class Params:
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now
         
         
-        self.min_CNDP_gap = 1e-2
+        self.min_CNDP_gap = 0.001
         
         self.OA_TOL_X = 2e-2
         self.OA_TOL_Y = 2e-2
