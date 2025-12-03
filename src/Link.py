@@ -48,7 +48,7 @@ class Link:
     def getTravelTimeC(self, x, add_cap, type):
         
         if x < 0 and x > -1e-4:
-            x = 0.0        
+            x = 0.0
         
         if self.y == 0 and type != 'RC':
             return Params.INFTY
@@ -93,14 +93,14 @@ class Link:
             
         return -self.t_ff * self.alpha * self.beta * pow(x / (self.C + add_cap), self.beta) / (self.C + add_cap)
       
-    def getPrimitiveTravelTime(self, x):  
+    def getPrimitiveTravelTime(self, x):
         return self.getPrimitiveTravelTimeC(x, self.add_cap)
         
         
     def getPrimitiveTravelTimeC(self, x, add_cap):
         
         if x < 0 and x > -1e-4:
-            x = 0.0        
+            x = 0.0
         
         if self.y == 0:
             if x > 0:
@@ -112,8 +112,14 @@ class Link:
             return x * self.t_ff + ((self.C + add_cap) / (self.beta + 1)) * self.t_ff * self.alpha * pow(x / (self.C + add_cap), self.beta+1)
         
         else:
-            return x * self.t_ff       
+            return x * self.t_ff
             
+    def getConst(self):
+        if self.beta > 0:
+            return self.t_ff * self.alpha * pow(1/ (self.C+ self.add_cap), self.beta)
+        else:
+            return 1
+                    
     def intdtdy(self, x, add_cap):
         return - self.t_ff * self.alpha * self.beta * pow(x, self.beta+1) / ( (self.beta+1) * pow(self.C + add_cap, self.beta+1))
 
@@ -127,15 +133,15 @@ class Link:
         return "(" + str(self.start.getId()) + ", " + str(self.end.getId()) + ")"
         
     def addXstar(self, flow):
-        self.xstar += flow   
+        self.xstar += flow
     
-    def calculateNewX(self, stepsize):        
+    def calculateNewX(self, stepsize):
         self.x = (1 - stepsize) * self.x + stepsize * self.xstar
         self.xstar = 0
         
     def hasHighReducedCost(self, type, percent):
         reducedCost = self.end.cost - self.start.cost
-        tt = self.getTravelTime(self.x, type)        
+        tt = self.getTravelTime(self.x, type)
         return tt - reducedCost > tt*percent
  
     def getReducedCost(self, type):

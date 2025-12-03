@@ -11,7 +11,7 @@ class Network:
 
     # construct this Network with the name; read files associated with network name
     def __init__(self,name,ins,B_prop,scal_time,scal_flow,inflate_trips):
-        self.nodes = [] 
+        self.nodes = []
         self.links = []
         self.zones = []
         self.origins = []
@@ -22,9 +22,9 @@ class Network:
         self.TC = 0 # total cost
         self.params = Params.Params()
         
-        self.ins = ins        
+        self.ins = ins
         
-        self.allPAS = PASList.PASList()        
+        self.allPAS = PASList.PASList()
         
         self.inf = 1e+9
         self.tol = 1e-2
@@ -42,7 +42,7 @@ class Network:
             if a not in self.links2:
                 self.links1.append(a)
         
-        self.B = self.TC * B_prop # budget        
+        self.B = self.TC * B_prop # budget
         
         #print('Total scaled demand %.1f' % self.TD)
         #print('Total cost %.1f - Budget %.1f' % (self.TC, self.B))
@@ -64,8 +64,8 @@ class Network:
         
         while line.strip() != "<END OF METADATA>":
             line = file.readline()
-            if "<NUMBER OF ZONES>" in line:            
-                numZones = int(line[line.index('>') + 1:].strip())            
+            if "<NUMBER OF ZONES>" in line:
+                numZones = int(line[line.index('>') + 1:].strip())
             elif "<NUMBER OF NODES>" in line:
                 numNodes = int(line[line.index('>') + 1:].strip())
             elif "<NUMBER OF LINKS>" in line:
@@ -101,7 +101,7 @@ class Network:
                 continue
             start = self.nodes[int(line[0]) - 1]
             end = self.nodes[int(line[1]) - 1]
-            C = float(line[2]) * scal_flow   
+            C = float(line[2]) * scal_flow
             
 
 
@@ -292,8 +292,8 @@ class Network:
             return output
 
     def getSPTree(self, r):
-        self.dijkstras(r, self.type)        
-        output = {}        
+        self.dijkstras(r, self.type)
+        output = {}
         for n in self.nodes:
             if n != r and n.cost < Params.INFTY:
                 output[n] = n.pred
@@ -356,7 +356,7 @@ class Network:
         output = 0.0
         for a in self.links:
             if a.y == 1:
-                output += a.getPrimitiveTravelTime(a.x)                
+                output += a.getPrimitiveTravelTime(a.x)
                 
         return output
 
@@ -423,7 +423,7 @@ class Network:
                     newlinks.append(ij)
             ij.y = y[ij]
             
-        # delete PAS using removedlinks        
+        # delete PAS using removedlinks
         for r in self.origins:
             if r.bush != None:
                 r.bush.addLinks(newlinks)
@@ -433,7 +433,7 @@ class Network:
 
     def msa(self, type, y):
         self.setY(y)
-        self.setType(type)        
+        self.setType(type)
         
         max_iteration = self.params.tapas_max_iter
         min_gap = self.params.min_gap
@@ -531,14 +531,14 @@ class Network:
                     # if there is an existing effective PAS
                         # make sure the origin is listed as relevant
                     # else
-                        # construct a new PAS    
+                        # construct a new PAS
                                     
                 # choose a random subset of active PASs
                 # shift flow within each chosen PAS
                     
                 r.bush.branchShifts()
             
-                printed = False                              
+                printed = False
                 for a in r.bush.relevantPAS.forward:
                     for p in r.bush.relevantPAS.forward[a]:
                         if self.params.PRINT_TAPAS_INFO and not printed:
@@ -597,7 +597,7 @@ class Network:
                     
                 if self.params.PRINT_TAPAS_INFO:
                     print("Adjusting parameters due to small gap "+str(self.params.pas_cost_mu)+" "+str(self.params.line_search_gap))
-            '''             
+            '''
             
             
             if (last_iter_gap - gap) < min_gap:
@@ -606,13 +606,13 @@ class Network:
                 self.params.line_search_gap = max(self.params.line_search_gap/10, self.params.min_line_search_gap)
                 
                 #if self.params.good_pas_cost_mu <= 10 and self.params.pas_cost_mu > 5e-5:
-                self.params.pas_cost_mu = max(self.params.pas_cost_mu/10, 1e-6)   
+                self.params.pas_cost_mu = max(self.params.pas_cost_mu/10, 1e-6)
                     
                 #elif self.params.good_pas_flow_mu <= 10 and self.params.pas_flow_mu > 5e-5:
-                self.params.pas_flow_mu = max(self.params.pas_flow_mu/10, 1e-6) 
+                self.params.pas_flow_mu = max(self.params.pas_flow_mu/10, 1e-6)
                    
                 #elif self.params.good_pas_cost_epsilon <= 10 and self.params.pas_cost_epsilon > 5e-6:
-                self.params.pas_cost_epsilon = max(self.params.pas_cost_epsilon/10, 1e-6) 
+                self.params.pas_cost_epsilon = max(self.params.pas_cost_epsilon/10, 1e-6)
                     
                 #elif self.params.bush_gap > 5e-6:
                 self.params.bush_gap = max(self.params.bush_gap/10, 1e-6)
@@ -620,12 +620,12 @@ class Network:
                 
                 '''
                 if self.params.pas_flow_mu > 5e-5:
-                    self.params.pas_flow_mu = max(self.params.pas_flow_mu/10, 1e-6) 
+                    self.params.pas_flow_mu = max(self.params.pas_flow_mu/10, 1e-6)
                     
                 elif self.params.pas_cost_epsilon > 5e-6:
-                    self.params.pas_cost_epsilon = max(self.params.pas_cost_epsilon/10, 1e-6) 
+                    self.params.pas_cost_epsilon = max(self.params.pas_cost_epsilon/10, 1e-6)
                     
-                    self.params.pas_cost_mu = max(self.params.pas_cost_mu/10, 1e-6)   
+                    self.params.pas_cost_mu = max(self.params.pas_cost_mu/10, 1e-6)
                     
                 elif self.params.bush_gap > 5e-6:
                     self.params.bush_gap = max(self.params.bush_gap/10, 1e-6)
@@ -679,7 +679,7 @@ class Network:
                 if p.isEffective(self.type, bush, self.params.pas_cost_mu, bush.origin.getProductions()*self.params.pas_flow_mu, self.params):
                     return p
           
-        return None        
+        return None
         
     def equilibratePAS(self, iter):
         output = False
@@ -690,7 +690,7 @@ class Network:
                     output = True
                     p.lastIterFlowShift = iter
 
-        return output        
+        return output
         
     def removeAPAS(self, p):
         self.allPAS.remove(p)
@@ -721,4 +721,43 @@ class Network:
         
         for p in removed:
             self.removeAPAS(p)
-
+    def getDualBeckmannOFV(self):
+        # calc tau_ri
+        # calc eta_ij
+        
+        tau = dict()
+        
+        for r in self.origins:
+            self.dijkstras(r, "UE")
+            for i in self.nodes:
+                tau[(r,i)] = i.cost
+        
+        eta = dict()
+        for a in self.links:
+            eta[a] = 0
+            
+            for r in self.origins:
+                if tau[(r, a.end)] < 1e5:
+                    eta[a] = max(eta[a], tau[(r, a.end)] - tau[(r, a.start)] - a.t_ff)
+                
+        
+        tau_term = 0
+        
+        for r in self.origins:
+            for s in r.getDests():
+                tau_term += r.getDemand(s) * tau[(r,s)]
+        
+        eta_term = 0
+             
+        for a in self.links:
+            g = a.getConst()
+            p = a.beta
+            ge = pow(g, 1/p)
+            
+            
+            if ge > 0:
+                eta_term += p / ((p+1) * ge) * pow(eta[a], (p+1)/p)
+        
+        print(tau_term, eta_term)
+        
+        return tau_term - eta_term
