@@ -721,6 +721,8 @@ class Network:
         
         for p in removed:
             self.removeAPAS(p)
+            
+            
     def getDualBeckmannOFV(self):
         # calc tau_ri
         # calc eta_ij
@@ -744,7 +746,7 @@ class Network:
         tau_term = 0
         
         for r in self.origins:
-            for s in r.getDests():
+            for s in self.zones:
                 tau_term += r.getDemand(s) * tau[(r,s)]
         
         eta_term = 0

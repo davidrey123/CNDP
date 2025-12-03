@@ -443,6 +443,7 @@ class OA_CNDP_CG_SB:
                 if (B_l - B_f)/B_f < self.params.min_CNDP_gap:
                     B_f = self.network.getDualBeckmannOFV()
                     
+                    print("check B", B_l, B_f)
                     if (B_l - B_f)/B_f < self.params.min_CNDP_gap:
                         obj_f = obj_l
                         nobranch = True
@@ -461,7 +462,7 @@ class OA_CNDP_CG_SB:
                 else:
                     self.add_vf_cut = True
                 
-                if no_branch:
+                if nobranch:
                     break
                     
             else:
@@ -544,7 +545,7 @@ class OA_CNDP_CG_SB:
             last_lb = lb
             
         
-        return "solved", lb, local_ub, no_branch
+        return "solved", lb, local_ub, nobranch
     
     def calcVFgap(self, a, y):
         y_lb = self.rmp.y[a].lb

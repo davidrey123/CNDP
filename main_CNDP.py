@@ -16,8 +16,8 @@ from decimal import Decimal
 net = 'SiouxFalls'
 ins = 'SF_CNDP_20_2'
 
-#net = 'EasternMassachusetts'
-#ins = 'EM_CNDP_10_1'
+net = 'EasternMassachusetts'
+ins = 'EM_CNDP_30_1'
 
 #net = 'HarkerFriesz'
 #ins = 'HF_CNDP_1'
@@ -42,10 +42,10 @@ network = Network.Network(net,ins,b_prop,1e-0,scal_flow[net],inflate_trips[net]*
 print("TD", network.TD)
 
 #test = OA_CNDP_CG.OA_CNDP_CG(network, inflate_cost)
-#test = OA_CNDP_CG_SB.OA_CNDP_CG_SB(network, inflate_cost)
+test = OA_CNDP_CG_SB.OA_CNDP_CG_SB(network, inflate_cost)
 #test = HY_CNDP.HY_CNDP(network)
 #test = CNDP_MILP.CNDP_MILP(network, 5, 5, 20, inflate_cost)
-test = GA.GA(network, inflate_cost)
+#test = GA.GA(network, inflate_cost)
 
 #obj, tot_time, tap_time, iter, = test.solve()
 #test.solve()
