@@ -105,14 +105,13 @@ class Network:
             
    
             if len(line) > 7:
-                cost = float(line[7])
-                print(cost)
+                cost = float(line[7])* 0.001
             else:
                 cost = 0
                 
             #print(start, end, cost, line)
             
-            self.TC += cost
+            self.TC += cost 
             
             link = Link.Link(id, start ,end, t_ff, C, alpha, beta, cost)
             id = id +1
@@ -142,18 +141,18 @@ class Network:
         
         #print(splitted)
         
-        for i in range(1, 24):
-            splitted = lines[line_idx].split()
-            next = splitted[i-1]
+        for i in range(1, 25):
+            splitted = lines[i-1].split()
             
             r = self.zones[i-1]
 
-            for j in range(1, 24):
+            for j in range(1, 25):
                 s = self.zones[j-1]
                 d = float(splitted[j-1])
                 
                 
                 r.addDemand(s, d)
+                
                 self.TD += d
 
         file.close()
