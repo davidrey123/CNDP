@@ -95,23 +95,24 @@ class Network:
                 continue
             start = self.nodes[int(line[1]) - 1]
             end = self.nodes[int(line[2]) - 1]
-            C = float(line[5]) * scal_flow
+            C = float(line[5])
             
 
 
-            t_ff = float(line[3]) * scal_time
+            t_ff = float(line[3]) 
             alpha = float(line[4])
             beta = float(line[6])
             
    
             if len(line) > 7:
-                cost = float(line[7])* 0.001
+                cost = float(line[7])
+                print(cost)
             else:
                 cost = 0
                 
             #print(start, end, cost, line)
             
-            self.TC += cost 
+            self.TC += cost
             
             link = Link.Link(id, start ,end, t_ff, C, alpha, beta, cost)
             id = id +1
@@ -141,18 +142,18 @@ class Network:
         
         #print(splitted)
         
-        for i in range(1, 25):
-            splitted = lines[i-1].split()
+        for i in range(1, 24):
+            splitted = lines[line_idx].split()
+            next = splitted[i-1]
             
             r = self.zones[i-1]
 
-            for j in range(1, 25):
+            for j in range(1, 24):
                 s = self.zones[j-1]
                 d = float(splitted[j-1])
                 
                 
                 r.addDemand(s, d)
-                
                 self.TD += d
 
         file.close()

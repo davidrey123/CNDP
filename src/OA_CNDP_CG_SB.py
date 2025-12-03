@@ -94,7 +94,7 @@ class OA_CNDP_CG_SB:
         x_f = None
         x_l = None
         
-        first_node_iter = 20
+        first_node_iter = 30
         other_node_iter = 1
         node_iter = first_node_iter
         
@@ -442,11 +442,13 @@ class OA_CNDP_CG_SB:
                 self.tap_time += t1
                 B_f = self.calcBeckmann(x_f, y_l)
 
-                if (B_l - B_f)/B_f < self.params.min_CNDP_gap:
+                #print("check B", B_l, B_f, (B_l - B_f)/B_f < self.params.min_fol_gap)
+                
+                if (B_l - B_f)/B_f < self.params.min_fol_gap:
                     B_f = self.network.getDualBeckmannOFV()
                     
-                    print("check B", B_l, B_f, (B_l - B_f)/B_f < self.params.min_CNDP_gap)
-                    if (B_l - B_f)/B_f < self.params.min_CNDP_gap:
+                    
+                    if (B_l - B_f)/B_f < self.params.min_fol_gap:
                         obj_f = obj_l
                         nobranch = True
 

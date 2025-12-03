@@ -15,7 +15,8 @@ class Params:
         
         
     def __init__(self):
-        
+        self.min_CNDP_gap = 0.01
+        self.min_fol_gap = 0.001
         #---Numerical rounding precision (in decimals)
         self.rd = 6
         
@@ -24,7 +25,7 @@ class Params:
         
         #---TAP params
         self.msa_max_iter = 500
-        self.tapas_max_iter = 100
+        self.tapas_max_iter = 500
         self.min_gap = 1E-5
         self.warmstart = True
         
@@ -87,7 +88,7 @@ class Params:
         self.PRINT_LOG = False #---outputs instance log file - used in BPC only for now
         
         
-        self.min_CNDP_gap = 0.001
+        
         
         self.OA_TOL_X = 2e-2
         self.OA_TOL_Y = 2e-2
