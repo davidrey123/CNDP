@@ -861,3 +861,29 @@ class Network:
             eta_term += p / ((p+1) * ge) * pow(eta[a], (p+1)/p)
             
         return tau_term - eta_term
+
+    def findUsedPaths(self):
+    	output = dict()
+    	
+    	for r in self.origins:
+    		for s in self.zones:
+    			if r.getDemand(s) > 0:
+    				output[(r,s)] = list()
+    			
+    	for r in self.origins:
+    		r.bush.getUsedPaths(output)
+    		
+    	return output
+        
+    def findUsedPathsFlows(self):
+    	output = dict()
+    	
+    	for r in self.origins:
+    		for s in self.zones:
+    			if r.getDemand(s) > 0:
+    				output[(r,s)] = dict()
+    			
+    	for r in self.origins:
+    		r.bush.getUsedPathsFlows(output)
+    		
+    	return output        
