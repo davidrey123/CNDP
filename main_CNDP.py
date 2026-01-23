@@ -89,6 +89,7 @@ def main():
 
 	#obj, tot_time, tap_time, iter, = test.solve()
 	#test.solve()
+	test.heuristic()
 	
 if __name__=="__main__":
     main()

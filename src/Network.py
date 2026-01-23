@@ -870,5 +870,17 @@ class Network:
         print(tau_term, eta_term)
         
         return tau_term - eta_term
+    def findUsedPathsFlows(self):
+    	output = dict()
+    	
+    	for r in self.origins:
+    		for s in self.zones:
+    			if r.getDemand(s) > 0:
+    				output[(r,s)] = dict()
+    			
+    	for r in self.origins:
+    		r.bush.getUsedPathsFlows(output)
+    		
+    	return output   
 
 

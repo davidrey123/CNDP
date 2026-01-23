@@ -130,7 +130,139 @@ class OA_dual_CG:
         self.vfcut_pi_ub = dict()
         
         
+    def heuristic(self):
         
+        # stopping criteria:
+        maxnit = 100        
+        maxnitLS = 3
+        
+        # decrease rate
+        Theta = 10
+        
+        print("initialization")
+        
+        # initialize demand
+        q0 = self.q_target
+        
+        # initial UE link flows
+        x0, beck0 = self.TAP(q0)
+        
+        # evaluate initial OFV
+        F0 = self.calcOFV(x0,q0)
+        print("F0",F0)
+        
+        pathflow = self.network.findUsedPathsFlows()       
+        pathprop = {(r,s):{k:(pathflow[(r,s)][k] / r.getDemand(s)) for k in pathflow[(r,s)]} for r in self.network.origins for s in r.getDests()}        
+        
+        current_q = q0
+        current_x = x0
+        current_F = F0
+        
+        print("main loop")
+        conv = False
+        nit = 0
+        while conv != True:
+            
+            print("iteration",nit)
+        
+            nablaF1 = dict()        
+            for r in self.network.origins:
+                for s in r.getDests():
+                    nablaF1[(r,s)] = 2*current_q[(r,s)] - 2*self.q_target[(r,s)]
+                     
+            nablaF2 = dict()
+            for a in self.x_target:
+                nablaF2[a] = 2*current_x[a] - 2*self.x_target[a]                
+
+            # for each OD (r,s)
+            nablaF = dict()
+            rbar = dict()
+            for r in self.network.origins:
+                for s in r.getDests():
+                                          
+                    # compute the row vector [partial v_1 / partial g_rs, ... , partial v_A / partial g_rs] by Spiess' method or by solving P4
+                    # Spiess method / initialization: d[a] = partial v_a / partial g_rs = sum_{k in path[r,s]} \delta_a,k p_k
+                    d = {}
+                    for a in self.network.links:
+                        d[a] = 0
+                        for k in pathprop[(r,s)]:                        
+                            if a in k.links:
+                                d[a] += pathprop[(r,s)][k]                    
+                    
+                    # compute and store the gradient: nablaF[(r,s)] = nablaF1[(r,s)] + sum_a (partial v_a / partial g_rs) * nablaF2[a]            
+                    nablaF[(r,s)] = nablaF1[(r,s)] + sum(d[a] * nablaF2[a] for a in self.x_target) 
+            
+                    # compute search direction by projection:                
+                    if current_q[(r,s)] > 0:
+                        rbar[(r,s)] = -nablaF[(r,s)]
+                    elif -nablaF[(r,s)] > 0:
+                        rbar[(r,s)] = -nablaF[(r,s)]
+                    else:
+                        rbar[(r,s)] = 0
+            
+            # line search            
+            alphamax = 1e15
+            for (r,s) in rbar:
+                if rbar[(r,s)] < 0:
+                    if -current_q[(r,s)] / rbar[(r,s)] < alphamax:
+                        alphamax = -current_q[(r,s)] / rbar[(r,s)]
+            
+            print("current_F",current_F,"alphamax",alphamax)
+            
+            alpha = alphamax 
+            nitLS = 0
+            linesearch = True            
+            while linesearch == True:
+                
+                # get demand based on current step length alpha
+                q = {}
+                for r in self.network.origins:
+                    for s in r.getDests():
+                        q[(r,s)] = current_q[(r,s)] + alpha * rbar[(r,s)]
+                        
+                # solve TAP at q
+                x, beck = self.TAP(q)
+                
+                # evaluate OFV at (x,q)
+                F = self.calcOFV(x,q)
+                print("LS",nitLS,"F",F)
+                
+                if current_F - F > 0:
+                    break
+                else:
+                    alpha = alpha/Theta
+                
+                if nitLS >= maxnitLS:
+                    linesearch = False
+                    print("no improvement")
+                    break
+                    
+                nitLS += 1
+                
+            if linesearch == False:
+                break
+            
+            # update
+            for r in self.network.origins:
+                for s in r.getDests():
+                    current_q[(r,s)] = current_q[(r,s)] + alpha * rbar[(r,s)]
+                    
+            for a in self.network.links:
+                current_x[a] = x[a]
+                
+            current_F = F
+            
+            nit += 1
+            
+            if nit >= maxnit:
+                print("max nb of iterations")
+                break
+        
+        self.ub = current_F
+        self.best_q = current_q
+        self.best_x = current_x
+        
+        return   
     
     def solve(self):
         timelimit = 144000
