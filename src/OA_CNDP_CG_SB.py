@@ -236,7 +236,7 @@ class OA_CNDP_CG_SB:
  
         
         self.rmp.end()
-        self.tstt = self.best_ub
+        
         self.gap = gap
         
         elapsed = time.time() - starttime
@@ -457,6 +457,7 @@ class OA_CNDP_CG_SB:
                     
                 if self.best_ub > obj_f:
                     self.best_ub = obj_f
+                    self.tstt = self.calcTSTT(x_f, y_l)
                     self.avgY = self.calcAvgY(y_l)
                     self.best_y = y_l
                     self.best_x = x_f
