@@ -13,17 +13,17 @@ from decimal import Decimal
 #net = 'Braess'
 #ins = 'Braess_CNDP_1'
 
-net = 'SiouxFalls2'
-ins = 'SF_CNDP_20_2'
+net = 'SiouxFalls'
+ins = 'SF_CNDP_10_1'
 
 #net = 'EasternMassachusetts'
-#ins = 'EM_CNDP_30_1'
+#ins = 'EM_CNDP_10_1'
 
 #net = 'HarkerFriesz'
 #ins = 'HF_CNDP_1'
 
-net = 'BerlinMitteCenter'
-ins = 'BMC_CNDP_60_1'
+#net = 'BerlinMitteCenter'
+#ins = 'BMC_CNDP_60_1'
 
 #net = 'Anaheim'
 #ins = 'A_CNDP_30_1'
@@ -50,5 +50,6 @@ test = OA_CNDP_CG_SB.OA_CNDP_CG_SB(network, inflate_cost)
 #obj, tot_time, tap_time, iter, = test.solve()
 #test.solve()
 
+#test.solve()
 
-test.solve()
+test.heuristic()
