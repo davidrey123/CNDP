@@ -92,6 +92,16 @@ class Link:
             x = 0.0
             
         return -self.t_ff * self.alpha * self.beta * pow(x / (self.C + add_cap), self.beta) / (self.C + add_cap)
+        
+    def getDerivativeTravelTimeCxofy(self, a, x, add_cap, dxdy):
+        if x < 0 and x > -1e-4:
+            x = 0.0
+        
+        d = 0
+        if a == self:
+            d = 1
+            
+        return self.t_ff * self.alpha * self.beta * pow(x / (self.C + add_cap), self.beta-1) * (dxdy / (self.C + add_cap) - d*x / pow(self.C + add_cap, 2))
       
     def getPrimitiveTravelTime(self, x):
         return self.getPrimitiveTravelTimeC(x, self.add_cap)

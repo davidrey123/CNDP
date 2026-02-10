@@ -873,3 +873,29 @@ class Network:
         for r in self.zones:
             if r.getProductions() > self.params.flow_epsilon:
                 self.origins.append(r)
+
+    def findUsedPaths(self):
+    	output = dict()
+    	
+    	for r in self.origins:
+    		for s in self.zones:
+    			if r.getDemand(s) > 0:
+    				output[(r,s)] = list()
+    			
+    	for r in self.origins:
+    		r.bush.getUsedPaths(output)
+    		
+    	return output
+        
+    def findUsedPathsFlows(self):
+    	output = dict()
+    	
+    	for r in self.origins:
+    		for s in self.zones:
+    			if r.getDemand(s) > 0:
+    				output[(r,s)] = dict()
+    			
+    	for r in self.origins:
+    		r.bush.getUsedPathsFlows(output)
+    		
+    	return output        

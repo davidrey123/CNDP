@@ -61,7 +61,143 @@ class OA_CNDP_CG_SB:
             self.yl_points[a] = []
             
        
+    def heuristic(self):
         
+        # stopping criteria:
+        maxnit = 100        
+        maxnitLS = 3
+        
+        # decrease rate
+        Theta = 10
+        
+        print("initialization")
+        
+        # initialize varlinks
+        #y0 = {a:0 for a in self.varlinks}
+        y0 = {a:a.max_add_cap/2 for a in self.varlinks}
+        #y0 = {a:a.max_add_cap for a in self.varlinks}
+        
+        # initial UE link flows
+        x0, beck0 = self.TAP(y0)
+        
+        # evaluate initial OFV
+        F0 = self.calcOFV(x0,y0)
+        print("F0",F0)
+        
+        current_y = y0
+        current_x = x0
+        current_F = F0
+        
+        print("main loop")
+        conv = False
+        nit = 0
+        while conv != True:
+            
+            print()
+            print("iteration",nit)
+        
+            # for each varlink
+            nablaF1 = dict() 
+            nablaF2 = dict() 
+            nablaF = dict()
+            rbar = dict()
+            d = {}
+            for a in self.network.links:
+                if a in self.varlinks:
+                                          
+                    # d[a] represents d x_a(y) / d y_a - currently using d[a] = 0 as it seems to work
+                    d[a] = 0
+                    
+                    # compute and store the gradient:        
+                    nablaF1[a] = a.cost                    
+                    
+                    nablaF2[a] = 0
+                    for b in self.network.links: 
+                        if b in self.varlinks:                        
+                            nablaF2[a] += d[a] * b.getTravelTimeC(current_x[b], current_y[b], "UE") + current_x[b] * b.getDerivativeTravelTimeCxofy(a, current_x[b], current_y[b], d[a])
+                        else:
+                            nablaF2[a] += d[a] * b.getTravelTimeC(current_x[b], 0.0, "UE") + current_x[b] * b.getDerivativeTravelTimeCxofy(a, current_x[b], 0.0, d[a])
+                    
+                    nablaF[a] = nablaF1[a] + nablaF2[a]            
+                    
+                    # compute search direction by projection:                                    
+                    if abs(a.max_add_cap - current_y[a]) < 1e-2:
+                        rbar[a] = 0                    
+                    elif abs(0 - current_y[a]) < 1e-2:
+                        rbar[a] = 0
+                    else:
+                        rbar[a] = -nablaF[a]
+            
+            # line search            
+            alphamax = 1e15            
+            for a in rbar:
+                if rbar[a] < 0:
+                    if -current_y[a] / rbar[a] < alphamax:
+                        alphamax = -current_y[a] / rbar[a]
+                
+                                
+                elif rbar[a] > 0:
+                    if (a.max_add_cap - current_y[a]) / rbar[a] < alphamax:
+                        alphamax = (a.max_add_cap - current_y[a]) / rbar[a]                        
+                
+            
+            print("current_F",current_F,"alphamax",alphamax)
+            
+            alpha = alphamax 
+            nitLS = 0
+            linesearch = True            
+            while linesearch == True:
+                
+                # get varlinks values based on current step length alpha
+                y = {}
+                for a in self.network.links:
+                    if a in self.varlinks:
+                        y[a] = current_y[a] + alpha * rbar[a]
+                        
+                # solve TAP at y
+                x, beck = self.TAP(y)
+                
+                # evaluate OFV at (x,y)
+                F = self.calcOFV(x,y)
+                print("LS",nitLS,"F",F,"alpha",alpha)
+                
+                if current_F - F > 0:
+                    break
+                else:
+                    alpha = alpha/Theta
+                
+                if nitLS >= maxnitLS:
+                    linesearch = False
+                    print("no improvement")
+                    break
+                    
+                nitLS += 1
+                
+            if linesearch == False:
+                break
+            
+            # update                    
+            for a in self.network.links:
+                current_x[a] = x[a]                
+                if a in self.varlinks:
+                    current_y[a] = current_y[a] + alpha * rbar[a]
+                
+            current_F = F
+            
+            nit += 1
+            
+            if nit >= maxnit:
+                print("max nb of iterations")
+                break
+        
+        self.ub = current_F
+        self.best_y = current_y
+        self.best_x = current_x
+        
+        print("best OFV",current_F)
+        print("best y",current_y)
+        
+        return        
         
     
     def solve(self):
