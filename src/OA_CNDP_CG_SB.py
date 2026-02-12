@@ -64,7 +64,7 @@ class OA_CNDP_CG_SB:
     def heuristic(self):
         
         # stopping criteria:
-        maxnit = 100        
+        maxnit = 100
         maxnitLS = 3
         
         # decrease rate
@@ -77,8 +77,17 @@ class OA_CNDP_CG_SB:
         y0 = {a:a.max_add_cap/2 for a in self.varlinks}
         #y0 = {a:a.max_add_cap for a in self.varlinks}
         
+        start_time = time.time()
+        total_tap_time = 0
+        
+        
+        
         # initial UE link flows
+        s_time = time.time()
         x0, beck0 = self.TAP(y0)
+        total_tap_time += time.time()-s_time
+        
+        
         
         # evaluate initial OFV
         F0 = self.calcOFV(x0,y0)
@@ -97,8 +106,8 @@ class OA_CNDP_CG_SB:
             print("iteration",nit)
         
             # for each varlink
-            nablaF1 = dict() 
-            nablaF2 = dict() 
+            nablaF1 = dict()
+            nablaF2 = dict()
             nablaF = dict()
             rbar = dict()
             d = {}
@@ -108,28 +117,28 @@ class OA_CNDP_CG_SB:
                     # d[a] represents d x_a(y) / d y_a - currently using d[a] = 0 as it seems to work
                     d[a] = 0
                     
-                    # compute and store the gradient:        
-                    nablaF1[a] = a.cost                    
+                    # compute and store the gradient:
+                    nablaF1[a] = a.cost
                     
                     nablaF2[a] = 0
-                    for b in self.network.links: 
-                        if b in self.varlinks:                        
+                    for b in self.network.links:
+                        if b in self.varlinks:
                             nablaF2[a] += d[a] * b.getTravelTimeC(current_x[b], current_y[b], "UE") + current_x[b] * b.getDerivativeTravelTimeCxofy(a, current_x[b], current_y[b], d[a])
                         else:
                             nablaF2[a] += d[a] * b.getTravelTimeC(current_x[b], 0.0, "UE") + current_x[b] * b.getDerivativeTravelTimeCxofy(a, current_x[b], 0.0, d[a])
                     
-                    nablaF[a] = nablaF1[a] + nablaF2[a]            
+                    nablaF[a] = nablaF1[a] + nablaF2[a]
                     
-                    # compute search direction by projection:                                    
+                    # compute search direction by projection:
                     if abs(a.max_add_cap - current_y[a]) < 1e-2:
-                        rbar[a] = 0                    
+                        rbar[a] = 0
                     elif abs(0 - current_y[a]) < 1e-2:
                         rbar[a] = 0
                     else:
                         rbar[a] = -nablaF[a]
             
-            # line search            
-            alphamax = 1e15            
+            # line search
+            alphamax = 1e15
             for a in rbar:
                 if rbar[a] < 0:
                     if -current_y[a] / rbar[a] < alphamax:
@@ -138,14 +147,14 @@ class OA_CNDP_CG_SB:
                                 
                 elif rbar[a] > 0:
                     if (a.max_add_cap - current_y[a]) / rbar[a] < alphamax:
-                        alphamax = (a.max_add_cap - current_y[a]) / rbar[a]                        
+                        alphamax = (a.max_add_cap - current_y[a]) / rbar[a]
                 
             
             print("current_F",current_F,"alphamax",alphamax)
             
-            alpha = alphamax 
+            alpha = alphamax
             nitLS = 0
-            linesearch = True            
+            linesearch = True
             while linesearch == True:
                 
                 # get varlinks values based on current step length alpha
@@ -155,7 +164,9 @@ class OA_CNDP_CG_SB:
                         y[a] = current_y[a] + alpha * rbar[a]
                         
                 # solve TAP at y
+                s_time = time.time()
                 x, beck = self.TAP(y)
+                total_tap_time += time.time()-s_time
                 
                 # evaluate OFV at (x,y)
                 F = self.calcOFV(x,y)
@@ -176,9 +187,9 @@ class OA_CNDP_CG_SB:
             if linesearch == False:
                 break
             
-            # update                    
+            # update
             for a in self.network.links:
-                current_x[a] = x[a]                
+                current_x[a] = x[a]
                 if a in self.varlinks:
                     current_y[a] = current_y[a] + alpha * rbar[a]
                 
@@ -197,7 +208,9 @@ class OA_CNDP_CG_SB:
         print("best OFV",current_F)
         print("best y",current_y)
         
-        return        
+        elapsed = time.time() - start_time
+        
+        return self.ub, self.calcAvgY(self.best_y), elapsed, total_tap_time, nit
         
     
     def solve(self):
