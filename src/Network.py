@@ -2,106 +2,52 @@ from src import Node
 from src import Link
 from src import Path
 from src import Zone
-from src import Bush
 from src import Params
-from src import PASList
 from src import Heap
 import random
 
 class Network:
 
     # construct this Network with the name; read files associated with network name
-    def __init__(self,name,ins,B_prop,scal_time,scal_flow,inflate_trips):
+    def __init__(self,name, num_candidate, B_):
         self.nodes = [] 
         self.links = []
         self.zones = []
         self.origins = []
         
+        random.seed(10)
+        
         self.name = name
         
-        self.links2 = []
-        self.type = 'UE'
-        self.TD = 0
-        self.TC = 0 # total cost
         self.params = Params.Params()
         
-        self.ins = ins        
-        
-        self.allPAS = PASList.PASList()        
-        
-        self.inf = 1e+9
-        self.tol = 1e-2
-        
-        if len(ins) == 0:
-            ins = "net"
+    
+
             
-        self.readNetwork("data/"+name+"/"+ins+".txt",scal_time,scal_flow)
-        self.readTrips("data/"+name+"/trips.txt",scal_time,scal_flow,inflate_trips)
+        self.readNetwork("data/"+name+"/net.txt",1,1)
+        self.readTrips("data/"+name+"/trips.txt",1,1,1)
         
         
         for r in self.origins:
             r.setDests()
         
-        self.links1 = []
+        self.B = B_
+        
+        self.candidates = []
         
         for a in self.links:
-            if a not in self.links2:
-                self.links1.append(a)
-        
-        self.B = self.TC * B_prop # budget         
-        
-        #print('Total scaled demand %.1f' % self.TD)
-        #print('Total cost %.1f - Budget %.1f' % (self.TC, self.B))
-    
-    def setType(self, type):
-        self.type = type
+            a.enabled = False
         
         
-    def checkDualBeckmann(self):
-        first = 0
-        
-        eta = {a:0 for a in self.links}
-        
+        for i in range (0, num_candidate):
+            while True:
+                link = self.links[random.randint(0, len(self.links))]
+                if link not in self.candidates:
+                    self.candidates.append(link)
+                    break
 
-        
-          
-
-        for r in self.origins:
-            self.dijkstras(r, "UE")
-            
-            for s in r.destSet:
-                first += r.demand[s] * s.cost
-                
-            for a in self.links:
-                if not(a.end.pred is None and a.start.pred is None):
-                    eta[a] = max(eta[a], a.end.cost - a.start.cost - a.t_ff)
-                
-                
-        second = 0
-        
-                
-        
-        for a in self.links:
-            g = a.getConst()
-            
-            #print(a, a.t_ff, a.getTravelTime(a.x, "UE"), eta[a])
-            
-            p = a.beta
-            
-            ge = pow(g, 1/p)
-            linkterm = p / (p+1) * pow(eta[a], (p+1)/p) / ge
-            #print("\t", linkterm)
-            second += linkterm
-        
-        dual = first - second
-        
-        primal = 0
-        
-        for a in self.links:
-            primal += a.getPrimitiveTravelTime(a.x)
-        
-        print(first, second)
-        print("check dual", dual, "primal", primal)
+        for a in self.candidates:
+            a.enabled = True
         
     # read file "/net.txt"
     def readNetwork(self,netFile,scal_time,scal_flow):
@@ -144,7 +90,7 @@ class Network:
         line = ""
         id = 0
         
-        print(numLinks)
+        
         while len(line) == 0:
             line = file.readline().strip()
 
@@ -156,6 +102,7 @@ class Network:
             end = self.nodes[int(line[1]) - 1]
             C = float(line[2]) * scal_flow   
             
+            length = float(line[3])
 
 
             t_ff = float(line[4]) * scal_time
@@ -169,22 +116,32 @@ class Network:
                 cost = 0
                 
             #print(start, end, cost, line)
+
+            foundLink = False
+            for ij in start.outgoing:
+                if ij.end == end:
+                    foundLink = True
+                    break
             
-            self.TC += cost
-            
-            link = Link.Link(id, start ,end, t_ff, C, alpha, beta, cost)
-            id = id +1
-            #print(start,end)
-            self.links.append(link)
-            #print(self.links)
+            if not foundLink:
+                link = Link.Link(id, start ,end, length)
+                id = id +1
+                #print(start,end)
+                self.links.append(link)
+                
+                link2 = Link.Link(id, end ,start, length)
+                id = id +1
+                #print(start,end)
+                self.links.append(link2)
+                #print(self.links)
             
             if i >= numLinks:
                 self.links2.append(link)
             
         file.close()
 
-    def initCalcY(self):
-        return None
+        print("num links", len(self.links))
+
 
     def readTrips(self,tripsFile,scal_time,scal_flow,inflate_trips):
         
@@ -230,7 +187,7 @@ class Network:
                 
                 
                 r.addDemand(s, d)
-                self.TD += d
+
 
             idx += 1
 
@@ -294,7 +251,7 @@ class Network:
 
     
 
-    def dijkstras(self, origin, type):
+    def dijkstras(self, origin, max_cost, type):
         
             for n in self.nodes:
                 n.cost = Params.INFTY
@@ -305,8 +262,7 @@ class Network:
             Q = Heap.Heap()
             Q.insert(origin)
             
-            #if type == 'RC':
-            #    print('origin',origin)
+
 
             while Q.size() > 0:
 
@@ -317,10 +273,10 @@ class Network:
 
                 for uv in u.outgoing:
                     v = uv.end
-                    tt = uv.getTravelTime(uv.x, type)
+                    tt = uv.getCost(type)
 
                     #if u.cost + tt < v.cost:
-                    if u.cost + tt < v.cost and v.cost - u.cost - tt >= self.params.SP_tol:
+                    if u.cost + tt < v.cost and v.cost - u.cost - tt >= self.params.SP_tol and u.cost + tt <= max_cost:
                         v.cost = u.cost + tt
                         v.pred = uv
                         
@@ -349,538 +305,4 @@ class Network:
               
         return output
         
-    def traceTree(self, tree, r, s):
-            curr = s
-
-            output = []
-
-            while curr != r and curr is not None:
-                ij = tree[curr]
-
-                if ij is not None:
-                    output.append(ij)
-                    curr = ij.start
-            
-            return output
-
-    def getSPTree(self, r):
-        self.dijkstras(r, self.type)        
-        output = {}        
-        for n in self.nodes:
-            if n != r and n.cost < Params.INFTY:
-                output[n] = n.pred
-        
-        return output
     
-    # returns the total system travel time
-    def getTSTT(self, type):
-        output = 0.0
-        for ij in self.links:
-            #if ij.y == 1 or ij.x > len(self.origins) * self.params.flow_epsilon:
-            if ij.y == 1:
-                tt = ij.getTravelTime(ij.x, type)
-                output += ij.x * tt
-                
-        return output
-    
-    def validateLinkFlows(self):
-        output = True
-        for ij in self.links:
-            totbushflow = 0
-            
-            for r in self.origins:
-                totbushflow += r.bush.getFlow(ij)
-            
-            if abs(ij.x - totbushflow) > self.params.flow_epsilon:
-                #print(ij, ij.x, totbushflow, ij.x-totbushflow, ij.getTravelTime(ij.x, self.type))
-                output = False
-        return output
-            
-    
-    # returns the total system travel time if all demand is on the shortest path
-    def getSPTT(self, type):
-        output = 0.0
-
-        for r in self.origins:
-            self.dijkstras(r, type)
-
-            for s in self.zones:
-                if r.getDemand(s) > 0:
-                    output += r.getDemand(s) * s.cost
-
-        return output
-
-    # returns the total number of trips in the network
-    def getTotalTrips(self):
-        output = 0.0
-
-        for r in self.origins:
-            output += r.getProductions()
-
-        return output
-
-    # returns the average excess cost
-    def getAEC(self):
-        return (self.getTSTT() - self.getSPTT()) / self.getTotalTrips()
-    
-    # returns the UE TAP objective function value
-    def getBeckmannOFV(self):
-        output = 0.0
-        for a in self.links:
-            if a.y == 1:
-                output += a.getPrimitiveTravelTime(a.x)                
-                
-        return output
-
-    # find the step size for the given iteration number
-    def calculateStepsize(self, iteration):
-        return 1.0 / iteration
-        #print(1.0 / iteration)
-
-
-    # calculate the new X for all links based on the given step size
-    def calculateNewX(self, stepsize):
-        for ij in self.links:
-            ij.calculateNewX(stepsize)
-
-
-    # calculate the all-or-nothing assignment
-    def calculateAON(self):
-        for r in self.origins:
-            self.dijkstras(r, self.type)
-
-            for s in self.zones:
-                if r.getDemand(s) > 0:
-                    pi_star = self.trace(r,s)
-                    pi_star.addHstar(r.getDemand(s))
-                    
-    def setAON(self, type, y):
-        self.setY(y)
-        
-        for r in self.origins:
-            self.dijkstras(r, type)
-
-            for s in self.zones:
-                if r.getDemand(s) > 0:
-                    pi_star = self.trace(r,s)
-                    pi_star.addHstar(r.getDemand(s))
-                    
-        for ij in self.links:
-            ij.calculateNewX(1)
-            
-        return self.getTSTT('UE')
-    
-    def getFlowMap(self):
-        output = {}
-        
-        for a in self.links:
-            output[a] = a.x
-        
-        return output
-        
-    def setFlows(self, flowmap):
-        for a in self.links:
-            a.x = flowmap[a]
-        
-    def setY(self, y):
-    
-        newlinks = []
-        removedlinks = []
-        
-        for ij in self.links2:
-            if y[ij] != ij.y:
-                if y[ij] == 0:
-                    removedlinks.append(ij)
-                else:
-                    newlinks.append(ij)
-            ij.y = y[ij]
-            
-        # delete PAS using removedlinks        
-        for r in self.origins:
-            if r.bush != None:
-                r.bush.addLinks(newlinks)
-                r.bush.removeLinks(removedlinks)
-                
-
-
-    def msa(self, type, y):
-        self.setY(y)
-        self.setType(type)        
-        
-        max_iteration = self.params.tapas_max_iter
-        min_gap = self.params.min_gap
-        
-       
-        if self.params.PRINT_TAP_ITER:
-            print("Iteration\tTSTT\tSPTT\tgap\tAEC")
-        
-        
-        for iteration in range(1, max_iteration + 1):
-            self.calculateAON()
-            stepsize = self.calculateStepsize(iteration)
-            
-            self.calculateNewX(stepsize)
-            
-            tstt = self.getTSTT(self.type)
-            sptt = self.getSPTT(self.type)
-            gap = (tstt - sptt)/tstt
-            aec = (tstt - sptt)/self.TD
-            
-            if self.params.PRINT_TAP_ITER:
-                print(str(iteration)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec))
-                
-            if gap < min_gap:
-                break
-        
-        return self.getTSTT('UE')
-        
-    def resetTapas(self):
-        for r in self.origins:
-            r.bush = None
-            
-        for a in self.links:
-            a.x = 0
-                
-        self.params = Params.Params()
-        
-        self.allPAS = PASList.PASList()
-    
-    def tapas(self, type, y):
-        
-        if not self.params.warmstart:
-            self.resetTapas()
-            
-        self.setY(y)
-        self.setType(type)
-        
-        iter = 1
-        max_iter = self.params.tapas_max_iter
-        
-        if type == 'UE' or type == 'SO':
-            min_gap = self.params.min_gap
-        elif type == 'SO_OA_cuts':
-            min_gap = self.params.min_gap_SO_OA_cuts
-        
-        #self.params.line_search_gap = pow(10, math.floor(math.log10(self.TD) - 6))
-        
-        if self.params.PRINT_TAP_ITER:
-            print("Iteration\tTSTT\tSPTT\tgap\tAEC\tBeckmann")
-            
-        last_iter_gap = 1
-        
-        for r in self.origins:
-            if r.bush == None:
-                r.bush = Bush.Bush(self, r)
-        
-        while iter <= max_iter:
-                        
-            #custom_x = {link: link.x for link in self.links}
-            #print(custom_x)
-            
-            self.params.good_pas_flow_mu = 0
-            self.params.good_pas_cost_mu = 0
-            self.params.good_bush_gap = 0
-            self.params.good_pas_cost_epsilon = 0
-            
-            # for every origin
-            for r in self.origins:
-            
-                # remove all cyclic flows and topological sort
-                if self.params.PRINT_TAPAS_INFO:
-                    print("removing cycles", r)
-                    
-                r.bush.removeCycles()
-                # find tree of least cost routes
-                            
-                if self.params.PRINT_TAPAS_INFO:
-                    print("checking for PAS", r)
-                                
-                r.bush.checkPAS()
-                
-                if self.params.PRINT_PAS_INFO:
-                    print("num PAS", r, r.bush.relevantPAS.size())
-                # for every link used by the origin which is not part of the tree
-                    # if there is an existing effective PAS
-                        # make sure the origin is listed as relevant
-                    # else
-                        # construct a new PAS    
-                                    
-                # choose a random subset of active PASs
-                # shift flow within each chosen PAS
-                    
-                r.bush.branchShifts()
-            
-                printed = False                              
-                for a in r.bush.relevantPAS.forward:
-                    for p in r.bush.relevantPAS.forward[a]:
-                        if self.params.PRINT_TAPAS_INFO and not printed:
-                            print("initial flow shifts", r)
-                            printed = True
-                        p.flowShift(self.type, self.params)
-                        
-                        # for every active PAS
-             
-            if self.params.PRINT_TAPAS_INFO:
-                print("general flow shifts")
-                               
-            modified = False
-            for shiftIter in range(0, self.params.tapas_equilibrate_iter):
-                # check if it should be eliminated
-                self.removePAS(iter)
-                # perform flow shift to equilibrate costs
-                modified = self.equilibratePAS(iter)
-                # redistribute flows between origins by the proportionality condition
-                            
-                # in the case that no flow shifting occurred, do not try to equilibrate more
-                if not modified:
-                    break
-                            
-            tstt = self.getTSTT(type)
-            sptt = self.getSPTT(type)
-            gap = (tstt - sptt)/tstt
-            aec = (tstt - sptt)/self.TD
-            beckmann = self.getBeckmannOFV()
-
-            #print(iter, sptt)
-                            
-            if self.params.PRINT_TAP_ITER:
-                print(str(iter)+"\t"+str(tstt)+"\t"+str(sptt)+"\t"+str(gap)+"\t"+str(aec)+"\t"+str(beckmann))
-                
-                #printLinkFlows();
-
-            if gap < min_gap:
-                break
-                
-            # there's an issue where PAS are labeled as not cost effective because the difference in cost is small, less than 5% of the reduced cost
-            # for low network gaps, this is causing PAS to not flow shift
-            # when the gap is low, increase the flow shift sensitivity
-            '''
-            if (last_iter_gap - gap) / gap < 0.01:
-                print('TAPAS check 1')
-                
-                #for r in self.origins:
-                #    r.bush.algBShift()
-                
-                self.params.bush_gap = max(self.params.bush_gap/10, 1e-6)
-                self.params.pas_cost_mu = max(self.params.pas_cost_mu/10, 1e-6)
-                self.params.pas_flow_mu = max(self.params.pas_flow_mu/10, 1e-6)
-                self.params.flow_epsilon = max(self.params.flow_epsilon/10, 1e-6)
-               
-                self.params.line_search_gap = max(self.params.line_search_gap/10, self.params.min_line_search_gap)
-                    
-                if self.params.PRINT_TAPAS_INFO:
-                    print("Adjusting parameters due to small gap "+str(self.params.pas_cost_mu)+" "+str(self.params.line_search_gap))
-            '''             
-            
-            
-            if (last_iter_gap - gap) < min_gap:
-                
-                
-                self.params.line_search_gap = max(self.params.line_search_gap/10, self.params.min_line_search_gap)
-                
-                #if self.params.good_pas_cost_mu <= 10 and self.params.pas_cost_mu > 5e-5:
-                self.params.pas_cost_mu = max(self.params.pas_cost_mu/10, 1e-6)   
-                    
-                #elif self.params.good_pas_flow_mu <= 10 and self.params.pas_flow_mu > 5e-5:
-                self.params.pas_flow_mu = max(self.params.pas_flow_mu/10, 1e-6) 
-                   
-                #elif self.params.good_pas_cost_epsilon <= 10 and self.params.pas_cost_epsilon > 5e-6:
-                self.params.pas_cost_epsilon = max(self.params.pas_cost_epsilon/10, 1e-6) 
-                    
-                #elif self.params.bush_gap > 5e-6:
-                self.params.bush_gap = max(self.params.bush_gap/10, 1e-6)
-                #self.params.resetPAS()
-                
-                '''
-                if self.params.pas_flow_mu > 5e-5:
-                    self.params.pas_flow_mu = max(self.params.pas_flow_mu/10, 1e-6) 
-                    
-                elif self.params.pas_cost_epsilon > 5e-6:
-                    self.params.pas_cost_epsilon = max(self.params.pas_cost_epsilon/10, 1e-6) 
-                    
-                    self.params.pas_cost_mu = max(self.params.pas_cost_mu/10, 1e-6)   
-                    
-                elif self.params.bush_gap > 5e-6:
-                    self.params.bush_gap = max(self.params.bush_gap/10, 1e-6)
-                    self.params.resetPAS()
-                '''
-                if self.params.PRINT_PARAM_ADJ:
-                    print('TAPAS gap check', self.params.bush_gap, self.params.pas_cost_mu, self.params.pas_flow_mu, self.params.pas_cost_epsilon)
-                    print("\t", self.params.good_bush_gap, self.params.good_pas_cost_mu, self.params.good_pas_flow_mu, self.params.good_pas_cost_epsilon)
-                
-            last_iter_gap = gap
-            iter += 1
-        
-        #---rounding link flows for numerical stability
-        for a in self.links:
-            a.x = round(a.x,self.params.rd)
-            #print(a.start.id,a.end.id,a.x)
-            
-        return self.getTSTT('UE')
-        
-    def findPAS(self, ij, bush):
-        
-        if not self.allPAS.containsKey(ij):
-            return None
-        
-        #best = None
-        #max = self.params.bush_gap
-        
-        if ij in self.allPAS.backward:
-            for p in self.allPAS.backward[ij]:
-                '''
-                bwdcost = p.getBackwardCost(self.type)
-                fwdcost = p.getForwardCost(self.type)
-                
-                if fwdcost > bwdcost * (1 + self.params.pas_cost_mu):
-                    bwdflow = p.maxBackwardBushFlowShift(bush)
-                    fwdflow = p.maxForwardBushFlowShift(bush)
-                    if fwdflow > max:
-                        best = p
-                elif bwdcost > fwdcost * (1 + self.params.pas_cost_mu):
-                    bwdflow = p.maxBackwardBushFlowShift(bush)
-                    fwdflow = p.maxForwardBushFlowShift(bush)
-                    if bwdflow > max:
-                        best = p
-                
-                '''
-                if p.isEffective(self.type, bush, self.params.pas_cost_mu, bush.origin.getProductions()*self.params.pas_flow_mu, self.params):
-                    return p
-                        
-        if ij in self.allPAS.forward:
-            for p in self.allPAS.forward[ij]:
-                if p.isEffective(self.type, bush, self.params.pas_cost_mu, bush.origin.getProductions()*self.params.pas_flow_mu, self.params):
-                    return p
-          
-        return None        
-        
-    def equilibratePAS(self, iter):
-        output = False
-        
-        for a in self.allPAS.forward:
-            for p in self.allPAS.forward[a]:
-                if p.flowShift(self.type, self.params):
-                    output = True
-                    p.lastIterFlowShift = iter
-
-        return output        
-        
-    def removeAPAS(self, p):
-        self.allPAS.remove(p)
-            
-        for r in p.relevant:
-            r.bush.relevantPAS.remove(p)
-    
-    def removePAS(self, iter):
-        removed = []
-        
-        for a in self.allPAS.forward:
-            for p in self.allPAS.forward[a]:
-                if p.lastIterFlowShift < iter-2:
-                    removed.append(p)
-        
-        for p in removed:
-            self.removeAPAS(p)
-            
-    def generateScenarios(self, start, num_scenarios, pct_links, x_error, q_error):
-        self.printLinkFlows("0", len(self.links), 0)
-        self.printODDemand("0")
-        
-        for i in range(start, num_scenarios+1+start):
-            self.generateScenario(i, pct_links, x_error, q_error)
-            
-    def generateScenario(self, scenario, pct_links, x_error, q_error):
-        self.printLinkFlows(scenario, round(len(self.links)* pct_links), x_error)
-        self.printODDemand(scenario, q_error)
-        
-    def printLinkFlows(self, scenario, numlinks, error):
-        #print(numlinks)
-        link_list = []
-        
-        for a in self.links:
-            link_list.append(a)
-            
-        random.shuffle(link_list)
-        
-        with open("data/"+self.name+"/linkflows_"+str(scenario)+".txt", "w") as f:
-            for idx in range(0, numlinks):
-                a = link_list[idx]
-                
-                x = a.x
-                
-                r = random.random()
-                
-                x_err = x+ r * x * error - x * (error/2)
-                print(a, x, x_err, r)
-                f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(x_err)+"\n")
-        
-             
-        with open("data/"+self.name+"/linkflowsC_"+str(scenario)+".txt", "w") as f:
-            for a in self.links:
-                for r in self.origins:
-                    f.write(str(a.start)+"\t"+str(a.end)+"\t"+str(r.id)+"\t"+str(r.bush.getFlow(a))+"\n")
-        
-
-    def printODDemand(self, scenario, q_error):
-        with open("data/"+self.name+"/demand_"+str(scenario)+".txt", "w") as f:
-            for r in self.origins:
-                for s in r.getDests():
-                    rnd = random.random() * q_error*2 - q_error
-                    q_err = r.demand[s] * (1 + rnd)
-                    f.write(str(r.id)+"\t"+str(s.id)+"\t"+str(q_err)+"\n")
-    
-    
-    def getDualBeckmannOFV(self):
-        # calc tau_ri
-        # calc eta_ij
-        
-        tau = dict()
-        
-        for r in self.origins:
-            self.dijkstras(r, "UE")
-            for i in self.nodes:
-                tau[(r,i)] = i.cost
-        
-        eta = dict()
-        for a in self.links:
-            eta[a] = 0
-            
-            for r in self.origins:
-                if tau[(r, a.end)] < 1e5:
-                    eta[a] = max(eta[a], tau[(r, a.end)] - tau[(r, a.start)] - a.t_ff)
-                
-        
-        tau_term = 0
-        
-        for r in self.origins:
-            for s in r.getDests():
-                tau_term += r.getDemand(s) * tau[(r,s)]
-        
-        eta_term = 0
-             
-        for a in self.links:
-            g = a.getConst()
-            p = a.beta
-            ge = pow(g, 1/p)
-            
-            
-            if ge > 0:
-                eta_term += p / ((p+1) * ge) * pow(eta[a], (p+1)/p)
-        
-        print(tau_term, eta_term)
-        
-        return tau_term - eta_term
-    def findUsedPathsFlows(self):
-    	output = dict()
-    	
-    	for r in self.origins:
-    		for s in self.zones:
-    			if r.getDemand(s) > 0:
-    				output[(r,s)] = dict()
-    			
-    	for r in self.origins:
-    		r.bush.getUsedPathsFlows(output)
-    		
-    	return output   
-
-
